@@ -6,16 +6,15 @@ Connectivity functions are NOT called in this module — those are tested separa
 
 import pytest
 import pytest_asyncio
-from cryptography.fernet import Fernet
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-
 from app.auth.service import hash_password, verify_password
 from app.db.base import Base
 from app.mailboxes import service as svc
-from app.mailboxes.models import ImapSecurity, MailboxProfile, MailboxStatus, SmtpSecurity
+from app.mailboxes.models import ImapSecurity, MailboxStatus, SmtpSecurity
 from app.mailboxes.schemas import MailboxFormData
 from app.security.crypto import CredentialEncryptor
 from app.users.models import User, UserRole
+from cryptography.fernet import Fernet
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 _TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
 _KEY = Fernet.generate_key().decode()
@@ -60,20 +59,20 @@ async def test_user(db: AsyncSession) -> User:
 
 def _make_form(**overrides) -> MailboxFormData:
     """Return a valid MailboxFormData with sensible defaults."""
-    defaults = dict(
-        display_name="Work",
-        email_address="alice@example.com",
-        imap_host="imap.example.com",
-        imap_port=993,
-        imap_username="alice@example.com",
-        imap_password="imap-secret",
-        imap_security=ImapSecurity.SSL_TLS,
-        smtp_host="smtp.example.com",
-        smtp_port=587,
-        smtp_username="alice@example.com",
-        smtp_password="smtp-secret",
-        smtp_security=SmtpSecurity.STARTTLS,
-    )
+    defaults = {
+        "display_name": "Work",
+        "email_address": "alice@example.com",
+        "imap_host": "imap.example.com",
+        "imap_port": 993,
+        "imap_username": "alice@example.com",
+        "imap_password": "imap-secret",
+        "imap_security": ImapSecurity.SSL_TLS,
+        "smtp_host": "smtp.example.com",
+        "smtp_port": 587,
+        "smtp_username": "alice@example.com",
+        "smtp_password": "smtp-secret",
+        "smtp_security": SmtpSecurity.STARTTLS,
+    }
     defaults.update(overrides)
     return MailboxFormData(**defaults)
 
@@ -282,7 +281,7 @@ class TestResetProxyPassword:
 
     async def test_reset_updates_hash(self, db: AsyncSession, test_user: User):
         form = _make_form()
-        profile, original_plain = await svc.create_mailbox(
+        profile, _original_plain = await svc.create_mailbox(
             db, test_user.id, form, _ENCRYPTOR
         )
         original_hash = profile.proxy_password_hash

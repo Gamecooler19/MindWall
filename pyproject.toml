@@ -28,7 +28,7 @@ dependencies = [
     # Templates
     "jinja2>=3.1.4",
     # Auth and security
-    "passlib[bcrypt]>=1.7.4",
+    "bcrypt>=4.0.0",
     "cryptography>=42.0.0",
     "itsdangerous>=2.2.0",
     # HTTP client (for Ollama and internal calls)

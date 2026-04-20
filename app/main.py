@@ -6,9 +6,9 @@ The create_app() factory is used both for production startup and for test
 fixture overrides. The module-level `app` instance is what uvicorn loads.
 """
 
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import AsyncGenerator
 
 import structlog
 from fastapi import FastAPI, Request, status
@@ -36,9 +36,9 @@ _APP_DIR = Path(__file__).parent
 
 def _register_routers(app: FastAPI, templates: Jinja2Templates) -> None:
     """Attach all domain routers and the home route to the application."""
+    from app.admin.router import router as admin_router
     from app.auth.router import router as auth_router
     from app.health.router import router as health_router
-    from app.admin.router import router as admin_router
     from app.mailboxes.router import router as mailboxes_router
 
     app.include_router(health_router)
@@ -57,8 +57,9 @@ def _register_routers(app: FastAPI, templates: Jinja2Templates) -> None:
                 "role": request.session.get("user_role", "user"),
             }
         return templates.TemplateResponse(
+            request,
             "index.html",
-            {"request": request, "user": user},
+            {"user": user},
         )
 
 
@@ -77,8 +78,9 @@ def _register_exception_handlers(app: FastAPI, templates: Jinja2Templates) -> No
         accept = request.headers.get("accept", "")
         if "text/html" in accept and exc.status_code == 404:
             return templates.TemplateResponse(
+                request,
                 "errors/404.html",
-                {"request": request},
+                {},
                 status_code=status.HTTP_404_NOT_FOUND,
             )
         return JSONResponse(

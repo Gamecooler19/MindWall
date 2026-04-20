@@ -15,16 +15,9 @@ Tests cover:
 """
 
 import pytest
-from cryptography.fernet import Fernet
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-
 from app.auth.service import hash_password
-from app.db.base import Base
-from app.mailboxes import service as mailbox_svc
-from app.mailboxes.models import ImapSecurity, MailboxProfile, SmtpSecurity
-from app.mailboxes.schemas import MailboxFormData
-from app.security.crypto import CredentialEncryptor
 from app.users.models import User, UserRole
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 # ---------------------------------------------------------------------------
 # Helpers — form data for create/edit

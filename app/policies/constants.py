@@ -7,7 +7,7 @@ Use these enums everywhere — do not duplicate string literals.
 import enum
 
 
-class ManipulationDimension(str, enum.Enum):
+class ManipulationDimension(enum.StrEnum):
     """The 12 psychological manipulation dimensions scored by the analysis engine.
 
     Each dimension maps to a score in [0.0, 1.0].
@@ -32,7 +32,7 @@ class ManipulationDimension(str, enum.Enum):
     CREDENTIAL_OR_PAYMENT_CAPTURE = "credential_or_payment_capture"
 
 
-class Verdict(str, enum.Enum):
+class Verdict(enum.StrEnum):
     """Final policy verdict for a message.
 
     Used by the policy engine, quarantine service, and IMAP proxy.

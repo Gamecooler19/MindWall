@@ -127,9 +127,9 @@ async def list_mailboxes(
     """Show all mailbox profiles for the authenticated user."""
     profiles = await service.list_mailboxes_for_user(db, current_user.user_id)
     return templates.TemplateResponse(
+        request,
         "mailboxes/list.html",
         {
-            "request": request,
             "user": get_session_user(request),
             "profiles": profiles,
         },
@@ -149,9 +149,9 @@ async def new_mailbox_form(
 ) -> HTMLResponse:
     """Render the mailbox registration form."""
     return templates.TemplateResponse(
+        request,
         "mailboxes/form.html",
         {
-            "request": request,
             "user": get_session_user(request),
             "form_action": "/mailboxes/",
             "title": "Register Mailbox",
@@ -173,11 +173,11 @@ async def create_mailbox(
     imap_host: Annotated[str, Form()],
     imap_port: Annotated[str, Form()],
     imap_username: Annotated[str, Form()],
-    imap_password: Annotated[str, Form()] = "",
-    imap_security: Annotated[str, Form()] = "ssl_tls",
     smtp_host: Annotated[str, Form()],
     smtp_port: Annotated[str, Form()],
     smtp_username: Annotated[str, Form()],
+    imap_password: Annotated[str, Form()] = "",
+    imap_security: Annotated[str, Form()] = "ssl_tls",
     smtp_password: Annotated[str, Form()] = "",
     smtp_security: Annotated[str, Form()] = "starttls",
 ) -> HTMLResponse:
@@ -199,9 +199,9 @@ async def create_mailbox(
 
     if errors or form_data is None:
         return templates.TemplateResponse(
+            request,
             "mailboxes/form.html",
             {
-                "request": request,
                 "user": get_session_user(request),
                 "form_action": "/mailboxes/",
                 "title": "Register Mailbox",
@@ -232,9 +232,9 @@ async def create_mailbox(
         )
     except ValueError as exc:
         return templates.TemplateResponse(
+            request,
             "mailboxes/form.html",
             {
-                "request": request,
                 "user": get_session_user(request),
                 "form_action": "/mailboxes/",
                 "title": "Register Mailbox",
@@ -282,9 +282,9 @@ async def mailbox_detail(
 
     settings = get_settings()
     return templates.TemplateResponse(
+        request,
         "mailboxes/detail.html",
         {
-            "request": request,
             "user": get_session_user(request),
             "profile": profile,
             "proxy_password_reveal": proxy_password_reveal,
@@ -315,9 +315,9 @@ async def edit_mailbox_form(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Mailbox not found.")
 
     return templates.TemplateResponse(
+        request,
         "mailboxes/form.html",
         {
-            "request": request,
             "user": get_session_user(request),
             "form_action": f"/mailboxes/{mailbox_id}/edit",
             "title": f"Edit — {profile.display_name}",
@@ -352,11 +352,11 @@ async def update_mailbox(
     imap_host: Annotated[str, Form()],
     imap_port: Annotated[str, Form()],
     imap_username: Annotated[str, Form()],
-    imap_password: Annotated[str, Form()] = "",
-    imap_security: Annotated[str, Form()] = "ssl_tls",
     smtp_host: Annotated[str, Form()],
     smtp_port: Annotated[str, Form()],
     smtp_username: Annotated[str, Form()],
+    imap_password: Annotated[str, Form()] = "",
+    imap_security: Annotated[str, Form()] = "ssl_tls",
     smtp_password: Annotated[str, Form()] = "",
     smtp_security: Annotated[str, Form()] = "starttls",
 ) -> HTMLResponse:
@@ -382,9 +382,9 @@ async def update_mailbox(
 
     if errors or form_data is None:
         return templates.TemplateResponse(
+            request,
             "mailboxes/form.html",
             {
-                "request": request,
                 "user": get_session_user(request),
                 "form_action": f"/mailboxes/{mailbox_id}/edit",
                 "title": f"Edit — {profile.display_name}",

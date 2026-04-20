@@ -29,7 +29,7 @@ async def login_page(
     """Render the login page. Redirect to dashboard if already authenticated."""
     if request.session.get("user_id"):
         return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)  # type: ignore[return-value]
-    return templates.TemplateResponse("auth/login.html", {"request": request})
+    return templates.TemplateResponse(request, "auth/login.html", {})
 
 
 @router.post("/login", response_class=HTMLResponse)
@@ -45,9 +45,9 @@ async def login(
 
     if user is None:
         return templates.TemplateResponse(
+            request,
             "auth/login.html",
             {
-                "request": request,
                 "error": "Invalid email or password.",
                 "prefill_email": email,
             },

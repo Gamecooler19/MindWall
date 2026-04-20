@@ -4,11 +4,9 @@ Validates that settings load correctly from environment variables,
 that required fields are enforced, and that validators reject bad input.
 """
 
-import os
 
 import pytest
 from pydantic import ValidationError
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -38,7 +36,8 @@ def _make_settings(**overrides):
 
 
 class TestSettingsLoading:
-    def test_defaults_are_applied(self):
+    def test_defaults_are_applied(self, monkeypatch):
+        monkeypatch.delenv("DEBUG", raising=False)
         s = _make_settings()
         assert s.app_name == "Mindwall"
         assert s.debug is False
@@ -77,16 +76,17 @@ class TestSettingsLoading:
 
 class TestSettingsValidation:
     def test_secret_key_too_short_raises(self):
-        with pytest.raises(ValidationError, match="min_length"):
+        with pytest.raises(ValidationError, match="string_too_short"):
             _make_settings(secret_key="short")
 
     def test_invalid_encryption_key_raises(self):
         with pytest.raises(ValidationError, match="ENCRYPTION_KEY"):
             _make_settings(encryption_key="not-a-fernet-key")
 
-    def test_missing_secret_key_raises(self):
+    def test_missing_secret_key_raises(self, monkeypatch):
         from app.config import Settings
 
+        monkeypatch.delenv("SECRET_KEY", raising=False)
         with pytest.raises(ValidationError):
             Settings(
                 encryption_key=_VALID_FERNET_KEY,
@@ -95,9 +95,10 @@ class TestSettingsValidation:
                 # secret_key intentionally omitted
             )
 
-    def test_missing_encryption_key_raises(self):
+    def test_missing_encryption_key_raises(self, monkeypatch):
         from app.config import Settings
 
+        monkeypatch.delenv("ENCRYPTION_KEY", raising=False)
         with pytest.raises(ValidationError):
             Settings(
                 secret_key=_VALID_SECRET_KEY,

@@ -18,7 +18,6 @@ import socket
 import ssl
 import time
 from dataclasses import dataclass
-from typing import Literal
 
 import structlog
 
@@ -135,7 +134,7 @@ def _test_imap_sync(
         if conn is not None:
             try:
                 conn.shutdown()
-            except Exception:
+            except Exception:  # noqa: S110 — cleanup failure is expected and harmless
                 pass
 
 
@@ -194,7 +193,7 @@ def _test_smtp_sync(
         if conn is not None:
             try:
                 conn.close()
-            except Exception:
+            except Exception:  # noqa: S110 — cleanup failure is expected and harmless
                 pass
 
 

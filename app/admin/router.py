@@ -31,6 +31,7 @@ async def admin_dashboard(
     recent alerts, and system-wide configuration status.
     """
     return templates.TemplateResponse(
+        request,
         "admin/index.html",
-        {"request": request, "user": current_user},
+        {"user": current_user},
     )

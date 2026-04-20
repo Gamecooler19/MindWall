@@ -6,7 +6,6 @@
               so we assert the correct response shape in both cases.
 """
 
-import pytest
 
 
 class TestLivenessEndpoint:

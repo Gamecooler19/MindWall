@@ -17,7 +17,7 @@ Security principles:
 
 import re
 import secrets
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import structlog
 from sqlalchemy import select
@@ -270,7 +270,7 @@ async def test_mailbox_connectivity(
     )
 
     # Update persistent connectivity status.
-    profile.last_connection_check_at = datetime.now(timezone.utc)
+    profile.last_connection_check_at = datetime.now(UTC)
 
     if imap_result.success and smtp_result.success:
         profile.status = MailboxStatus.ACTIVE

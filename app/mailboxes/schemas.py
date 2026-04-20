@@ -6,7 +6,7 @@ fields and pass them to these schemas for validation before calling
 the service layer.
 """
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 from app.mailboxes.models import ImapSecurity, SmtpSecurity
 

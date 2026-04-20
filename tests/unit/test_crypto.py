@@ -1,9 +1,8 @@
 """Unit tests for app.security.crypto."""
 
 import pytest
-from cryptography.fernet import Fernet
-
 from app.security.crypto import CredentialEncryptor, generate_fernet_key
+from cryptography.fernet import Fernet
 
 
 class TestCredentialEncryptor:

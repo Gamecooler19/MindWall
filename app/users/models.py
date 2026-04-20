@@ -6,13 +6,14 @@ Roles are enforced at the dependency layer — see app/dependencies.py.
 
 import enum
 
-from sqlalchemy import Boolean, Enum as SAEnum, String
+from sqlalchemy import Boolean, String
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
 
 
-class UserRole(str, enum.Enum):
+class UserRole(enum.StrEnum):
     """RBAC roles for Mindwall principals.
 
     - ADMIN    — full system access, policy management, quarantine actions.

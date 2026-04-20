@@ -8,21 +8,16 @@ Tests target the synchronous helper functions directly so that:
 
 import imaplib
 import smtplib
-import socket
 import ssl
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from app.mailboxes.connectivity import (
-    ConnectivityResult,
     _safe_imap_error,
     _safe_smtp_error,
     _test_imap_sync,
     _test_smtp_sync,
 )
 from app.mailboxes.models import ImapSecurity, SmtpSecurity
-
 
 # ---------------------------------------------------------------------------
 # Safe error mappers
@@ -37,7 +32,7 @@ class TestSafeImapError:
         assert "password" in msg.lower()
 
     def test_timeout_error(self):
-        msg = _safe_imap_error(socket.timeout())
+        msg = _safe_imap_error(TimeoutError())
         assert "timed out" in msg.lower()
 
     def test_connection_refused(self):
@@ -74,7 +69,7 @@ class TestSafeSmtpError:
         assert "connection" in msg.lower()
 
     def test_timeout_error(self):
-        msg = _safe_smtp_error(socket.timeout())
+        msg = _safe_smtp_error(TimeoutError())
         assert "timed out" in msg.lower()
 
     def test_connection_refused(self):
@@ -159,7 +154,7 @@ class TestImapSyncTester:
     def test_timeout_returns_error_result(self):
         with patch(
             "app.mailboxes.connectivity.imaplib.IMAP4_SSL",
-            side_effect=socket.timeout(),
+            side_effect=TimeoutError(),
         ):
             result = _test_imap_sync(
                 "imap.example.com", 993, ImapSecurity.SSL_TLS, "user", "pass", 5
@@ -246,7 +241,7 @@ class TestSmtpSyncTester:
     def test_timeout_returns_error_result(self):
         with patch(
             "app.mailboxes.connectivity.smtplib.SMTP",
-            side_effect=socket.timeout(),
+            side_effect=TimeoutError(),
         ):
             result = _test_smtp_sync(
                 "smtp.example.com", 587, SmtpSecurity.STARTTLS, "user", "pass", 5

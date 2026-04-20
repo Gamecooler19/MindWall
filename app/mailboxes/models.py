@@ -11,6 +11,7 @@ and SQLite, keeping migrations simple and portable.
 """
 
 import enum
+from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy import Enum as SAEnum
@@ -19,7 +20,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.db.base import Base
 
 
-class ImapSecurity(str, enum.Enum):
+class ImapSecurity(enum.StrEnum):
     """TLS/security mode for upstream IMAP connections."""
 
     SSL_TLS = "ssl_tls"      # Connect with TLS from the start  (port 993)
@@ -27,7 +28,7 @@ class ImapSecurity(str, enum.Enum):
     NONE = "none"            # Unencrypted — not recommended, here for compatibility
 
 
-class SmtpSecurity(str, enum.Enum):
+class SmtpSecurity(enum.StrEnum):
     """TLS/security mode for upstream SMTP connections."""
 
     SSL_TLS = "ssl_tls"      # Connect with TLS from the start  (port 465)
@@ -35,7 +36,7 @@ class SmtpSecurity(str, enum.Enum):
     NONE = "none"            # Unencrypted — not recommended
 
 
-class MailboxStatus(str, enum.Enum):
+class MailboxStatus(enum.StrEnum):
     """Lifecycle / connectivity status of a MailboxProfile."""
 
     ACTIVE = "active"
@@ -133,8 +134,6 @@ class MailboxProfile(Base):
     # ------------------------------------------------------------------
     # Connectivity check results
     # ------------------------------------------------------------------
-    from datetime import datetime  # noqa: PLC0415
-
     last_connection_check_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

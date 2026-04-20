@@ -18,14 +18,13 @@ Database:
 
 import os
 
+import app.mailboxes.models
+import app.users.models
 import pytest
 import pytest_asyncio
+from app.db.base import Base
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-
-from app.db.base import Base
-import app.mailboxes.models  # noqa: F401 — registers MailboxProfile with Base.metadata
-import app.users.models  # noqa: F401 — registers User with Base.metadata
 
 # ---------------------------------------------------------------------------
 # Test environment — set BEFORE any app imports that call get_settings()

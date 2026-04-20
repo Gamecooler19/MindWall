@@ -6,7 +6,6 @@ Tests here verify that:
   - The OpenAPI schema is available in debug mode.
 """
 
-import pytest
 
 
 class TestAppStartup:

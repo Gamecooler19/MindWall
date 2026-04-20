@@ -4,8 +4,8 @@ Handles password hashing (bcrypt) and credential verification.
 This module contains no HTTP concerns — it is pure domain logic.
 """
 
+import bcrypt
 import structlog
-from passlib.context import CryptContext
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,17 +13,24 @@ from app.users.models import User
 
 log = structlog.get_logger(__name__)
 
-_pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Pre-computed hash used for constant-time dummy verification.
+# Prevents user-enumeration via timing differences when no account exists.
+_DUMMY_HASH: bytes = bcrypt.hashpw(b"mindwall-dummy-verify-constant-time", bcrypt.gensalt())
 
 
 def hash_password(password: str) -> str:
     """Return a bcrypt hash of the given plaintext password."""
-    return _pwd_context.hash(password)
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Return True if plain_password matches the stored bcrypt hash."""
-    return _pwd_context.verify(plain_password, hashed_password)
+    return bcrypt.checkpw(plain_password.encode(), hashed_password.encode())
+
+
+def _dummy_verify() -> None:
+    """Perform a constant-time dummy bcrypt verify for timing equalization."""
+    bcrypt.checkpw(b"mindwall-dummy-verify-constant-time", _DUMMY_HASH)
 
 
 async def authenticate_user(
@@ -45,7 +52,7 @@ async def authenticate_user(
     if user is None:
         # Perform dummy hash to equalise timing regardless of whether the
         # account exists. This prevents user enumeration attacks.
-        _pwd_context.dummy_verify()
+        _dummy_verify()
         log.warning("auth.login_failed", reason="user_not_found")
         return None
 

@@ -4,7 +4,7 @@ These are used for request validation, response serialisation,
 and the authenticated user context passed through dependencies.
 """
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 
 
 class UserContext(BaseModel):

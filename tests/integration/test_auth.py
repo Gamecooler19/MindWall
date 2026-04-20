@@ -1,6 +1,5 @@
 """Integration tests for auth routes (login/logout)."""
 
-import pytest
 
 
 class TestLoginPage:

@@ -7,12 +7,11 @@ These are designed to be used by container orchestrators and load balancers.
 No authentication is required so they can be polled without credentials.
 """
 
+import redis.asyncio as aioredis
 import structlog
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
-
-import redis.asyncio as aioredis
 
 from app.config import get_settings
 from app.db.session import get_engine

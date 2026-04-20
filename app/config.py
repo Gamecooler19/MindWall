@@ -53,7 +53,7 @@ class Settings(BaseSettings):
     # Encryption
     # -----------------------------------------------------------------------
     # Fernet key used to encrypt upstream IMAP/SMTP credentials at rest.
-    # Generate: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    # Generate: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key())"
     encryption_key: str = Field(...)
 
     # -----------------------------------------------------------------------
@@ -65,9 +65,9 @@ class Settings(BaseSettings):
     # -----------------------------------------------------------------------
     # Proxy listeners
     # -----------------------------------------------------------------------
-    imap_proxy_host: str = "0.0.0.0"
+    imap_proxy_host: str = "0.0.0.0"  # noqa: S104 — intentional bind-all for proxy listener
     imap_proxy_port: int = 1993
-    smtp_proxy_host: str = "0.0.0.0"
+    smtp_proxy_host: str = "0.0.0.0"  # noqa: S104 — intentional bind-all for proxy listener
     smtp_proxy_port: int = 1587
 
     # Human-readable hostnames shown in proxy setup instructions.
