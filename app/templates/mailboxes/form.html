@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} — Mindwall{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto space-y-6">
+
+  <!-- Page header -->
+  <div>
+    <nav class="text-sm text-gray-500 mb-3">
+      <a href="/mailboxes/" class="hover:text-gray-300 transition-colors">Mailboxes</a>
+      <span class="mx-2">›</span>
+      <span class="text-gray-300">{{ title }}</span>
+    </nav>
+    <h1 class="text-2xl font-bold text-white">{{ title }}</h1>
+  </div>
+
+  <!-- Validation errors -->
+  {% if errors %}
+  <div class="rounded-md bg-red-950 border border-red-800 p-4" role="alert">
+    <p class="text-sm font-medium text-red-300 mb-2">Please fix the following errors:</p>
+    <ul class="list-disc list-inside space-y-1">
+      {% for err in errors %}
+      <li class="text-sm text-red-400">{{ err }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <form method="post" action="{{ form_action }}" novalidate class="space-y-8">
+
+    <!-- ============================================================
+         General
+         ============================================================ -->
+    <section class="bg-gray-900 border border-gray-800 rounded-lg p-6 space-y-5">
+      <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">General</h2>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+
+        <div>
+          <label for="display_name" class="block text-sm font-medium text-gray-300 mb-1.5">
+            Display name <span class="text-red-500">*</span>
+          </label>
+          <input id="display_name" name="display_name" type="text" required
+            value="{{ prefill.display_name | default('') }}"
+            class="block w-full rounded-md bg-gray-800 border border-gray-700 text-white px-3 py-2 text-sm
+                   placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent"
+            placeholder="Work email" />
+        </div>
+
+        <div>
+          <label for="email_address" class="block text-sm font-medium text-gray-300 mb-1.5">
+            Email address <span class="text-red-500">*</span>
+          </label>
+          <input id="email_address" name="email_address" type="email" required
+            value="{{ prefill.email_address | default('') }}"
+            class="block w-full rounded-md bg-gray-800 border border-gray-700 text-white px-3 py-2 text-sm
+                   placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent"
+            placeholder="you@example.com" />
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============================================================
+         IMAP (incoming mail)
+         ============================================================ -->
+    <section class="bg-gray-900 border border-gray-800 rounded-lg p-6 space-y-5">
+      <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">IMAP — Incoming Mail</h2>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+
+        <div class="sm:col-span-2">
+          <label for="imap_host" class="block text-sm font-medium text-gray-300 mb-1.5">
+            IMAP host <span class="text-red-500">*</span>
+          </label>
+          <input id="imap_host" name="imap_host" type="text" required
+            value="{{ prefill.imap_host | default('') }}"
+            class="block w-full rounded-md bg-gray-800 border border-gray-700 text-white px-3 py-2 text-sm
+                   placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent"
+            placeholder="imap.example.com" />
+        </div>
+
+        <div>
+          <label for="imap_port" class="block text-sm font-medium text-gray-300 mb-1.5">
+            Port <span class="text-red-500">*</span>
+          </label>
+          <input id="imap_port" name="imap_port" type="number" required min="1" max="65535"
+            value="{{ prefill.imap_port | default('993') }}"
+            class="block w-full rounded-md bg-gray-800 border border-gray-700 text-white px-3 py-2 text-sm
+                   focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent" />
+        </div>
+
+      </div>
+
+      <div>
+        <label for="imap_security" class="block text-sm font-medium text-gray-300 mb-1.5">
+          Security <span class="text-red-500">*</span>
+        </label>
+        <select id="imap_security" name="imap_security"
+          class="block w-full rounded-md bg-gray-800 border border-gray-700 text-white px-3 py-2 text-sm
+                 focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent">
+          <option value="ssl_tls"  {% if prefill.imap_security|default('ssl_tls') == 'ssl_tls' %}selected{% endif %}>SSL/TLS (port 993)</option>
+          <option value="starttls" {% if prefill.imap_security == 'starttls' %}selected{% endif %}>STARTTLS (port 143)</option>
+          <option value="none"     {% if prefill.imap_security == 'none' %}selected{% endif %}>None — unencrypted (not recommended)</option>
+        </select>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+
+        <div>
+          <label for="imap_username" class="block text-sm font-medium text-gray-300 mb-1.5">
+            Username <span class="text-red-500">*</span>
+          </label>
+          <input id="imap_username" name="imap_username" type="text" required
+            value="{{ prefill.imap_username | default('') }}"
+            autocomplete="username"
+            class="block w-full rounded-md bg-gray-800 border border-gray-700 text-white px-3 py-2 text-sm
+                   placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent"
+            placeholder="you@example.com" />
+        </div>
+
+        <div>
+          <label for="imap_password" class="block text-sm font-medium text-gray-300 mb-1.5">
+            Password{% if is_edit %} <span class="text-gray-600 font-normal text-xs">(leave blank to keep existing)</span>{% else %}<span class="text-red-500">*</span>{% endif %}
+          </label>
+          <input id="imap_password" name="imap_password" type="password"
+            {% if not is_edit %}required{% endif %}
+            autocomplete="new-password"
+            class="block w-full rounded-md bg-gray-800 border border-gray-700 text-white px-3 py-2 text-sm
+                   placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent"
+            placeholder="{% if is_edit %}••••••••{% else %}Your IMAP password{% endif %}" />
+          {% if is_edit %}
+          <p class="mt-1 text-xs text-gray-600">Stored encrypted. Fill in only if changing the password.</p>
+          {% endif %}
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============================================================
+         SMTP (outgoing mail)
+         ============================================================ -->
+    <section class="bg-gray-900 border border-gray-800 rounded-lg p-6 space-y-5">
+      <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">SMTP — Outgoing Mail</h2>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+
+        <div class="sm:col-span-2">
+          <label for="smtp_host" class="block text-sm font-medium text-gray-300 mb-1.5">
+            SMTP host <span class="text-red-500">*</span>
+          </label>
+          <input id="smtp_host" name="smtp_host" type="text" required
+            value="{{ prefill.smtp_host | default('') }}"
+            class="block w-full rounded-md bg-gray-800 border border-gray-700 text-white px-3 py-2 text-sm
+                   placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent"
+            placeholder="smtp.example.com" />
+        </div>
+
+        <div>
+          <label for="smtp_port" class="block text-sm font-medium text-gray-300 mb-1.5">
+            Port <span class="text-red-500">*</span>
+          </label>
+          <input id="smtp_port" name="smtp_port" type="number" required min="1" max="65535"
+            value="{{ prefill.smtp_port | default('587') }}"
+            class="block w-full rounded-md bg-gray-800 border border-gray-700 text-white px-3 py-2 text-sm
+                   focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent" />
+        </div>
+
+      </div>
+
+      <div>
+        <label for="smtp_security" class="block text-sm font-medium text-gray-300 mb-1.5">
+          Security <span class="text-red-500">*</span>
+        </label>
+        <select id="smtp_security" name="smtp_security"
+          class="block w-full rounded-md bg-gray-800 border border-gray-700 text-white px-3 py-2 text-sm
+                 focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent">
+          <option value="starttls" {% if prefill.smtp_security|default('starttls') == 'starttls' %}selected{% endif %}>STARTTLS (port 587)</option>
+          <option value="ssl_tls"  {% if prefill.smtp_security == 'ssl_tls' %}selected{% endif %}>SSL/TLS (port 465)</option>
+          <option value="none"     {% if prefill.smtp_security == 'none' %}selected{% endif %}>None — unencrypted (not recommended)</option>
+        </select>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+
+        <div>
+          <label for="smtp_username" class="block text-sm font-medium text-gray-300 mb-1.5">
+            Username <span class="text-red-500">*</span>
+          </label>
+          <input id="smtp_username" name="smtp_username" type="text" required
+            value="{{ prefill.smtp_username | default('') }}"
+            autocomplete="username"
+            class="block w-full rounded-md bg-gray-800 border border-gray-700 text-white px-3 py-2 text-sm
+                   placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent"
+            placeholder="you@example.com" />
+          <p class="mt-1 text-xs text-gray-600">Usually the same as your IMAP username.</p>
+        </div>
+
+        <div>
+          <label for="smtp_password" class="block text-sm font-medium text-gray-300 mb-1.5">
+            Password{% if is_edit %} <span class="text-gray-600 font-normal text-xs">(leave blank to keep existing)</span>{% else %}<span class="text-red-500">*</span>{% endif %}
+          </label>
+          <input id="smtp_password" name="smtp_password" type="password"
+            {% if not is_edit %}required{% endif %}
+            autocomplete="new-password"
+            class="block w-full rounded-md bg-gray-800 border border-gray-700 text-white px-3 py-2 text-sm
+                   placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent"
+            placeholder="{% if is_edit %}••••••••{% else %}Your SMTP password{% endif %}" />
+          <p class="mt-1 text-xs text-gray-600">Usually the same as your IMAP password.</p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============================================================
+         Actions
+         ============================================================ -->
+    <div class="flex items-center justify-between">
+      <a href="/mailboxes/" class="text-sm text-gray-400 hover:text-white transition-colors">
+        ← Cancel
+      </a>
+      <button type="submit"
+        class="inline-flex items-center gap-2 px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2 focus:ring-offset-gray-950">
+        {% if is_edit %}Save Changes{% else %}Register Mailbox{% endif %}
+      </button>
+    </div>
+
+  </form>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Auto-fill default port when the security mode changes.
+  const IMAP_DEFAULTS = { ssl_tls: '993', starttls: '143', none: '143' };
+  const SMTP_DEFAULTS = { ssl_tls: '465', starttls: '587', none: '25' };
+
+  document.getElementById('imap_security')?.addEventListener('change', function() {
+    const portEl = document.getElementById('imap_port');
+    if (portEl) portEl.value = IMAP_DEFAULTS[this.value] || '993';
+  });
+
+  document.getElementById('smtp_security')?.addEventListener('change', function() {
+    const portEl = document.getElementById('smtp_port');
+    if (portEl) portEl.value = SMTP_DEFAULTS[this.value] || '587';
+  });
+</script>
+{% endblock %}

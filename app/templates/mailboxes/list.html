@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}Mailboxes — Mindwall{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+  <!-- Page header -->
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-bold text-white">Mailboxes</h1>
+      <p class="mt-1 text-sm text-gray-400">
+        Registered upstream mailboxes. Each mailbox gets its own Mindwall proxy credentials.
+      </p>
+    </div>
+    <a href="/mailboxes/new"
+       class="inline-flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2 focus:ring-offset-gray-950">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+      </svg>
+      Register Mailbox
+    </a>
+  </div>
+
+  {% if not profiles %}
+  <!-- Empty state -->
+  <div class="flex flex-col items-center justify-center py-20 text-center bg-gray-900 border border-gray-800 rounded-lg">
+    <svg class="w-10 h-10 text-gray-700 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+    </svg>
+    <p class="text-gray-400 font-medium mb-1">No mailboxes registered yet</p>
+    <p class="text-sm text-gray-600 mb-5">Register your first mailbox to get started with Mindwall.</p>
+    <a href="/mailboxes/new"
+       class="inline-flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors">
+      Register Your First Mailbox
+    </a>
+  </div>
+
+  {% else %}
+  <!-- Mailbox table -->
+  <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+    <table class="min-w-full divide-y divide-gray-800">
+      <thead>
+        <tr class="text-xs font-medium text-gray-500 uppercase tracking-wider">
+          <th scope="col" class="px-6 py-3 text-left">Name / Email</th>
+          <th scope="col" class="px-6 py-3 text-left hidden sm:table-cell">Server</th>
+          <th scope="col" class="px-6 py-3 text-left hidden md:table-cell">Proxy User</th>
+          <th scope="col" class="px-6 py-3 text-left">Status</th>
+          <th scope="col" class="px-6 py-3 text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-800">
+        {% for p in profiles %}
+        <tr class="hover:bg-gray-800/40 transition-colors">
+          <td class="px-6 py-4">
+            <div class="font-medium text-white">{{ p.display_name }}</div>
+            <div class="text-sm text-gray-400">{{ p.email_address }}</div>
+          </td>
+          <td class="px-6 py-4 hidden sm:table-cell text-sm text-gray-400">
+            <div>{{ p.imap_host }}:{{ p.imap_port }}</div>
+          </td>
+          <td class="px-6 py-4 hidden md:table-cell text-sm text-gray-500 font-mono">
+            {% if p.proxy_username %}
+              {{ p.proxy_username }}
+            {% else %}
+              <span class="text-gray-700">—</span>
+            {% endif %}
+          </td>
+          <td class="px-6 py-4">
+            {% if p.status == 'active' %}
+              <span class="inline-flex items-center gap-1 text-xs text-green-400 font-medium">
+                <span class="w-1.5 h-1.5 rounded-full bg-green-400"></span>Active
+              </span>
+            {% elif p.status == 'connection_error' %}
+              <span class="inline-flex items-center gap-1 text-xs text-red-400 font-medium">
+                <span class="w-1.5 h-1.5 rounded-full bg-red-400"></span>Error
+              </span>
+            {% elif p.status == 'inactive' %}
+              <span class="inline-flex items-center gap-1 text-xs text-gray-500 font-medium">
+                <span class="w-1.5 h-1.5 rounded-full bg-gray-500"></span>Inactive
+              </span>
+            {% else %}
+              <span class="inline-flex items-center gap-1 text-xs text-amber-400 font-medium">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>Pending
+              </span>
+            {% endif %}
+          </td>
+          <td class="px-6 py-4 text-right">
+            <a href="/mailboxes/{{ p.id }}"
+               class="text-sm text-gray-400 hover:text-white transition-colors mr-3">
+              View
+            </a>
+            <a href="/mailboxes/{{ p.id }}/edit"
+               class="text-sm text-gray-400 hover:text-white transition-colors">
+              Edit
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

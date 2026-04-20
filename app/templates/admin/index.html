@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}Admin — Mindwall{% endblock %}
+
+{% block content %}
+
+<div class="space-y-8">
+
+  <!-- Page header -->
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-bold text-white">Admin Dashboard</h1>
+      <p class="mt-1 text-sm text-gray-400">System management, monitoring, and configuration</p>
+    </div>
+    <a href="/health/ready" target="_blank"
+       class="inline-flex items-center gap-1.5 text-xs text-green-400 bg-green-950 border border-green-800 rounded px-2.5 py-1.5 hover:bg-green-900 transition-colors">
+      <span class="w-1.5 h-1.5 rounded-full bg-green-400 inline-block"></span>
+      System healthy
+    </a>
+  </div>
+
+  <!-- Feature grid — placeholder cards for future phases -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
+    <div class="bg-gray-900 border border-gray-800 rounded-lg p-5 opacity-60">
+      <div class="flex items-start justify-between mb-2">
+        <h3 class="font-medium text-white">Quarantine Inbox</h3>
+        <span class="text-xs text-gray-600 bg-gray-800 rounded px-1.5 py-0.5">Phase 5</span>
+      </div>
+      <p class="text-sm text-gray-500">Review and release suspicious messages with full evidence trails.</p>
+    </div>
+
+    <div class="bg-gray-900 border border-gray-800 rounded-lg p-5 opacity-60">
+      <div class="flex items-start justify-between mb-2">
+        <h3 class="font-medium text-white">Policy Editor</h3>
+        <span class="text-xs text-gray-600 bg-gray-800 rounded px-1.5 py-0.5">Phase 5</span>
+      </div>
+      <p class="text-sm text-gray-500">Configure per-dimension thresholds, allow/block lists, and verdicts.</p>
+    </div>
+
+    <div class="bg-gray-900 border border-gray-800 rounded-lg p-5 opacity-60">
+      <div class="flex items-start justify-between mb-2">
+        <h3 class="font-medium text-white">Mailbox Profiles</h3>
+        <span class="text-xs text-gray-600 bg-gray-800 rounded px-1.5 py-0.5">Phase 2</span>
+      </div>
+      <p class="text-sm text-gray-500">Manage registered upstream mailboxes and proxy credential assignments.</p>
+    </div>
+
+    <div class="bg-gray-900 border border-gray-800 rounded-lg p-5 opacity-60">
+      <div class="flex items-start justify-between mb-2">
+        <h3 class="font-medium text-white">Model Health</h3>
+        <span class="text-xs text-gray-600 bg-gray-800 rounded px-1.5 py-0.5">Phase 4</span>
+      </div>
+      <p class="text-sm text-gray-500">Ollama inference status, model latency, and degraded-mode indicators.</p>
+    </div>
+
+    <div class="bg-gray-900 border border-gray-800 rounded-lg p-5 opacity-60">
+      <div class="flex items-start justify-between mb-2">
+        <h3 class="font-medium text-white">Alerts &amp; Incidents</h3>
+        <span class="text-xs text-gray-600 bg-gray-800 rounded px-1.5 py-0.5">Phase 5</span>
+      </div>
+      <p class="text-sm text-gray-500">Evidence-backed admin alerts and triage workflow for high-risk messages.</p>
+    </div>
+
+    <a href="/health/ready" target="_blank"
+       class="bg-gray-900 border border-gray-700 hover:border-gray-600 rounded-lg p-5 transition-colors">
+      <div class="flex items-start justify-between mb-2">
+        <h3 class="font-medium text-white">System Health</h3>
+        <span class="text-xs text-green-600 bg-green-950 rounded px-1.5 py-0.5">Live</span>
+      </div>
+      <p class="text-sm text-gray-500">Database, Redis, and background worker readiness status.</p>
+      <p class="mt-3 text-xs text-gray-600">View /health/ready →</p>
+    </a>
+
+  </div>
+
+  <!-- Audit log placeholder -->
+  <div class="bg-gray-900 border border-gray-800 rounded-lg p-5 opacity-60">
+    <div class="flex items-start justify-between mb-2">
+      <h3 class="font-medium text-white">Audit Log</h3>
+      <span class="text-xs text-gray-600 bg-gray-800 rounded px-1.5 py-0.5">Phase 6</span>
+    </div>
+    <p class="text-sm text-gray-500">
+      Immutable record of every action: logins, quarantine decisions, policy changes, releases.
+    </p>
+  </div>
+
+  <!-- Session info -->
+  <div class="bg-gray-900 border border-gray-800 rounded-lg p-5">
+    <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">Current Session</h2>
+    <dl class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+      <div>
+        <dt class="text-gray-500">User</dt>
+        <dd class="text-white font-medium">{{ user.email }}</dd>
+      </div>
+      <div>
+        <dt class="text-gray-500">Role</dt>
+        <dd class="text-white font-medium">{{ user.role | capitalize }}</dd>
+      </div>
+      <div>
+        <dt class="text-gray-500">Version</dt>
+        <dd class="text-white font-medium">0.1.0</dd>
+      </div>
+      <div>
+        <dt class="text-gray-500">Mode</dt>
+        <dd class="text-white font-medium">Modular Monolith</dd>
+      </div>
+    </dl>
+  </div>
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+
+{% block title %}{{ profile.display_name }} — Mindwall{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-6">
+
+  <!-- Breadcrumb + header -->
+  <div>
+    <nav class="text-sm text-gray-500 mb-3">
+      <a href="/mailboxes/" class="hover:text-gray-300 transition-colors">Mailboxes</a>
+      <span class="mx-2">›</span>
+      <span class="text-gray-300">{{ profile.display_name }}</span>
+    </nav>
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-bold text-white">{{ profile.display_name }}</h1>
+        <p class="mt-1 text-sm text-gray-400">{{ profile.email_address }}</p>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        {% if profile.status == 'active' %}
+          <span class="inline-flex items-center gap-1.5 text-xs text-green-400 bg-green-950 border border-green-800 rounded px-2.5 py-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-green-400"></span>Active
+          </span>
+        {% elif profile.status == 'connection_error' %}
+          <span class="inline-flex items-center gap-1.5 text-xs text-red-400 bg-red-950 border border-red-800 rounded px-2.5 py-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-red-400"></span>Connection Error
+          </span>
+        {% elif profile.status == 'inactive' %}
+          <span class="inline-flex items-center gap-1.5 text-xs text-gray-500 bg-gray-800 border border-gray-700 rounded px-2.5 py-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-gray-500"></span>Inactive
+          </span>
+        {% else %}
+          <span class="inline-flex items-center gap-1.5 text-xs text-amber-400 bg-amber-950 border border-amber-800 rounded px-2.5 py-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>Pending Verification
+          </span>
+        {% endif %}
+        <a href="/mailboxes/{{ profile.id }}/edit"
+           class="inline-flex items-center gap-1.5 text-xs text-gray-400 bg-gray-800 border border-gray-700 rounded px-2.5 py-1.5 hover:bg-gray-700 transition-colors">
+          Edit
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================
+       ONE-TIME PROXY PASSWORD REVEAL
+       Only shown immediately after creation or password reset.
+       ================================================================ -->
+  {% if proxy_password_reveal %}
+  <div class="bg-amber-950 border border-amber-700 rounded-lg p-5" role="alert">
+    <div class="flex items-start gap-3">
+      <svg class="w-5 h-5 text-amber-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+      </svg>
+      <div class="flex-1">
+        <p class="font-semibold text-amber-300 mb-1">Save your proxy password now</p>
+        <p class="text-sm text-amber-400 mb-3">
+          This password will <strong>never be shown again</strong>.
+          Copy it now and store it in a password manager before leaving this page.
+        </p>
+        <div class="bg-amber-900/50 border border-amber-700/50 rounded p-3 font-mono text-amber-200 text-sm break-all select-all">
+          {{ proxy_password_reveal }}
+        </div>
+        <p class="mt-2 text-xs text-amber-600">
+          Use this password when configuring your mail client to connect to the Mindwall proxy.
+        </p>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ================================================================
+       CONNECTION ERROR BANNER
+       ================================================================ -->
+  {% if profile.last_connection_error %}
+  <div class="bg-red-950 border border-red-800 rounded-lg p-4">
+    <p class="text-sm text-red-300 font-medium mb-1">Last connectivity test failed</p>
+    <p class="text-sm text-red-400">{{ profile.last_connection_error }}</p>
+  </div>
+  {% endif %}
+
+  <!-- ================================================================
+       PROXY SETUP INSTRUCTIONS
+       This is the primary value of this page.
+       ================================================================ -->
+  <section class="bg-gray-900 border border-gray-800 rounded-lg p-6 space-y-5">
+    <h2 class="text-base font-semibold text-white">Mail Client Proxy Setup</h2>
+    <p class="text-sm text-gray-400">
+      Configure your mail client using the settings below to connect through Mindwall.
+      Mindwall will intercept and analyse incoming mail before it reaches your inbox.
+    </p>
+
+    <!-- IMAP proxy -->
+    <div>
+      <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">IMAP (Incoming Mail)</h3>
+      <div class="bg-gray-800 rounded-lg overflow-hidden">
+        <table class="w-full text-sm">
+          <tbody class="divide-y divide-gray-700">
+            <tr>
+              <td class="px-4 py-2.5 text-gray-400 w-36">Hostname</td>
+              <td class="px-4 py-2.5 font-mono text-white">{{ proxy_imap_host }}</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-2.5 text-gray-400">Port</td>
+              <td class="px-4 py-2.5 font-mono text-white">{{ proxy_imap_port }}</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-2.5 text-gray-400">Username</td>
+              <td class="px-4 py-2.5 font-mono text-white">
+                {% if profile.proxy_username %}{{ profile.proxy_username }}{% else %}<span class="text-gray-600">—</span>{% endif %}
+              </td>
+            </tr>
+            <tr>
+              <td class="px-4 py-2.5 text-gray-400">Password</td>
+              <td class="px-4 py-2.5">
+                {% if proxy_password_reveal %}
+                  <span class="font-mono text-amber-300">{{ proxy_password_reveal }}</span>
+                  <span class="ml-2 text-xs text-amber-600">(shown once — see banner above)</span>
+                {% else %}
+                  <span class="text-gray-600 tracking-widest">••••••••</span>
+                  <span class="ml-2 text-xs text-gray-700">Reset password to get a new one</span>
+                {% endif %}
+              </td>
+            </tr>
+            <tr>
+              <td class="px-4 py-2.5 text-gray-400">Security</td>
+              <td class="px-4 py-2.5 text-gray-300">SSL/TLS (recommended)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SMTP proxy -->
+    <div>
+      <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">SMTP (Outgoing Mail)</h3>
+      <div class="bg-gray-800 rounded-lg overflow-hidden">
+        <table class="w-full text-sm">
+          <tbody class="divide-y divide-gray-700">
+            <tr>
+              <td class="px-4 py-2.5 text-gray-400 w-36">Hostname</td>
+              <td class="px-4 py-2.5 font-mono text-white">{{ proxy_smtp_host }}</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-2.5 text-gray-400">Port</td>
+              <td class="px-4 py-2.5 font-mono text-white">{{ proxy_smtp_port }}</td>
+            </tr>
+            <tr>
+              <td class="px-4 py-2.5 text-gray-400">Username</td>
+              <td class="px-4 py-2.5 font-mono text-white">
+                {% if profile.proxy_username %}{{ profile.proxy_username }}{% else %}<span class="text-gray-600">—</span>{% endif %}
+              </td>
+            </tr>
+            <tr>
+              <td class="px-4 py-2.5 text-gray-400">Password</td>
+              <td class="px-4 py-2.5">
+                {% if proxy_password_reveal %}
+                  <span class="font-mono text-amber-300">{{ proxy_password_reveal }}</span>
+                {% else %}
+                  <span class="text-gray-600 tracking-widest">••••••••</span>
+                  <span class="ml-2 text-xs text-gray-700">Same as IMAP proxy password</span>
+                {% endif %}
+              </td>
+            </tr>
+            <tr>
+              <td class="px-4 py-2.5 text-gray-400">Security</td>
+              <td class="px-4 py-2.5 text-gray-300">STARTTLS (recommended)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="border-t border-gray-800 pt-4">
+      <p class="text-xs text-gray-600">
+        The Mindwall proxy is not yet active (Phase 3 — IMAP/SMTP proxy services).
+        Save these settings in your mail client now so they are ready when the proxy is enabled.
+      </p>
+    </div>
+  </section>
+
+  <!-- ================================================================
+       UPSTREAM CONFIGURATION (read-only summary)
+       ================================================================ -->
+  <section class="bg-gray-900 border border-gray-800 rounded-lg p-6 space-y-4">
+    <h2 class="text-base font-semibold text-white">Upstream Mailbox Configuration</h2>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+      <div>
+        <p class="text-gray-500 mb-0.5">IMAP server</p>
+        <p class="text-white font-mono">{{ profile.imap_host }}:{{ profile.imap_port }}</p>
+        <p class="text-gray-500 text-xs">{{ profile.imap_security.value | replace('_', '/') | upper }}</p>
+      </div>
+      <div>
+        <p class="text-gray-500 mb-0.5">SMTP server</p>
+        <p class="text-white font-mono">{{ profile.smtp_host }}:{{ profile.smtp_port }}</p>
+        <p class="text-gray-500 text-xs">{{ profile.smtp_security.value | replace('_', '/') | upper }}</p>
+      </div>
+      <div>
+        <p class="text-gray-500 mb-0.5">IMAP username</p>
+        <p class="text-white">{{ profile.imap_username }}</p>
+      </div>
+      <div>
+        <p class="text-gray-500 mb-0.5">SMTP username</p>
+        <p class="text-white">{{ profile.smtp_username }}</p>
+      </div>
+      <div>
+        <p class="text-gray-500 mb-0.5">IMAP password</p>
+        <p class="text-gray-600 tracking-widest">•••••••• <span class="text-xs font-normal">stored encrypted</span></p>
+      </div>
+      <div>
+        <p class="text-gray-500 mb-0.5">SMTP password</p>
+        <p class="text-gray-600 tracking-widest">•••••••• <span class="text-xs font-normal">stored encrypted</span></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================
+       ACTIONS
+       ================================================================ -->
+  <section class="bg-gray-900 border border-gray-800 rounded-lg p-6 space-y-4">
+    <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Actions</h2>
+
+    <div class="flex flex-wrap gap-3">
+
+      <!-- Test connectivity -->
+      <form method="post" action="/mailboxes/{{ profile.id }}/test">
+        <button type="submit"
+          class="inline-flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          Test Upstream Connection
+        </button>
+      </form>
+
+      <!-- Reset proxy password -->
+      <form method="post" action="/mailboxes/{{ profile.id }}/reset-password"
+            data-confirm="This will generate a new proxy password. You will need to update your mail client. Continue?">
+        <button type="submit"
+          class="inline-flex items-center gap-2 px-4 py-2 bg-amber-700 hover:bg-amber-600 text-white text-sm rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+          Reset Proxy Password
+        </button>
+      </form>
+
+    </div>
+
+    <!-- Delete (separate, destructive) -->
+    <div class="border-t border-gray-800 pt-4">
+      <form method="post" action="/mailboxes/{{ profile.id }}/delete"
+            data-confirm="Permanently delete this mailbox profile? This cannot be undone.">
+        <button type="submit"
+          class="inline-flex items-center gap-2 px-4 py-2 text-red-400 hover:text-red-300 text-sm rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-red-600">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+          </svg>
+          Delete This Mailbox
+        </button>
+      </form>
+    </div>
+  </section>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Confirm destructive actions before submitting.
+  document.querySelectorAll('form[data-confirm]').forEach((form) => {
+    form.addEventListener('submit', (e) => {
+      if (!confirm(form.dataset.confirm)) e.preventDefault();
+    });
+  });
+</script>
+{% endblock %}

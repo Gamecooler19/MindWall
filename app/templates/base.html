@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Mindwall{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { DEFAULT: '#dc2626', dark: '#b91c1c' }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="/static/css/custom.css" />
+</head>
+<body class="min-h-full bg-gray-950 text-gray-100 antialiased flex flex-col">
+
+  <!-- ================================================================
+       Navigation
+       ================================================================ -->
+  <nav class="bg-gray-900 border-b border-gray-800 shrink-0">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="flex h-14 items-center justify-between">
+
+        <!-- Logo + primary nav -->
+        <div class="flex items-center gap-6">
+          <a href="/" class="flex items-center gap-2 text-white font-semibold tracking-tight">
+            <svg class="w-5 h-5 text-red-500" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+            </svg>
+            <span>Mindwall</span>
+          </a>
+
+          {% if user %}
+          <div class="hidden md:flex items-center gap-4 text-sm">
+            <a href="/"
+               class="text-gray-400 hover:text-white transition-colors {% if request.url.path == '/' %}text-white{% endif %}">
+              Dashboard
+            </a>
+            <a href="/mailboxes/"
+               class="text-gray-400 hover:text-white transition-colors {% if request.url.path.startswith('/mailboxes') %}text-white{% endif %}">
+              Mailboxes
+            </a>
+            {% if user.role == 'admin' %}
+            <a href="/admin/"
+               class="text-gray-400 hover:text-white transition-colors {% if request.url.path.startswith('/admin') %}text-white{% endif %}">
+              Admin
+            </a>
+            {% endif %}
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- Right side -->
+        <div class="flex items-center gap-4">
+          {% if user %}
+          <span class="hidden sm:block text-xs text-gray-500">
+            {{ user.email }}
+            <span class="ml-1 inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium
+              {% if user.role == 'admin' %}bg-red-900 text-red-300
+              {% elif user.role == 'analyst' %}bg-amber-900 text-amber-300
+              {% else %}bg-gray-800 text-gray-400{% endif %}">
+              {{ user.role }}
+            </span>
+          </span>
+          <form method="post" action="/logout">
+            <button type="submit"
+              class="text-sm text-gray-400 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-red-600 rounded">
+              Sign out
+            </button>
+          </form>
+          {% else %}
+          <a href="/login"
+             class="text-sm text-gray-400 hover:text-white transition-colors">
+            Sign in
+          </a>
+          {% endif %}
+        </div>
+
+      </div>
+    </div>
+  </nav>
+
+  <!-- ================================================================
+       Flash / alert messages
+       ================================================================ -->
+  {% if messages %}
+  <div class="mx-auto max-w-7xl w-full px-4 sm:px-6 lg:px-8 mt-4 space-y-2" role="alert">
+    {% for msg in messages %}
+    <div class="rounded-md border p-3 text-sm
+      {% if msg.type == 'error' %}bg-red-950 border-red-800 text-red-300
+      {% elif msg.type == 'warning' %}bg-amber-950 border-amber-800 text-amber-300
+      {% else %}bg-green-950 border-green-800 text-green-300{% endif %}">
+      {{ msg.text }}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- ================================================================
+       Main content
+       ================================================================ -->
+  <main class="mx-auto max-w-7xl w-full px-4 sm:px-6 lg:px-8 py-8 flex-1">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- ================================================================
+       Footer
+       ================================================================ -->
+  <footer class="shrink-0 border-t border-gray-800 py-4">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <p class="text-xs text-gray-700 text-center">
+        Mindwall v0.1.0 &mdash; All inference is local. No message data leaves this deployment.
+      </p>
+    </div>
+  </footer>
+
+  <script src="/static/js/main.js"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

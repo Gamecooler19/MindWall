@@ -1,0 +1,5 @@
+# Scripts directory — operational and utility scripts.
+# Examples of future scripts:
+#   create_admin_user.py  — bootstrap the first admin account
+#   rotate_encryption_key.py — re-encrypt credentials with a new key
+#   export_audit_log.py — export audit records to SYSLOG-compatible format

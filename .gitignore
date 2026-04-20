@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Environment files (contain secrets — never commit)
+.env
+.env.local
+.env.*.local
+
+# Test and coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Ruff cache
+.ruff_cache/
+
+# MyPy
+.mypy_cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+
+# Data directories (runtime-generated, potentially sensitive)
+data/
+*.eml
+
+# Alembic — only exclude compiled .pyc inside alembic
+alembic/__pycache__/
+
+# Logs
+*.log
+logs/

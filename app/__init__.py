@@ -1,0 +1,1 @@
+"""Mindwall application package."""

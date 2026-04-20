@@ -1,0 +1,28 @@
+/*
+ * Mindwall — custom.css
+ *
+ * Supplement to Tailwind CDN classes for anything that cannot be expressed
+ * with utilities. Keep this file minimal — prefer Tailwind classes in templates.
+ */
+
+/* Smooth focus ring for keyboard navigation */
+:focus-visible {
+  outline: 2px solid #dc2626;
+  outline-offset: 2px;
+}
+
+/* Scrollbar styling for dark theme (WebKit only) */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #111827;
+}
+::-webkit-scrollbar-thumb {
+  background: #374151;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #4b5563;
+}

@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — Mindwall{% endblock %}
+
+{% block content %}
+
+{% if not user %}
+<!-- ====================================================================
+     Unauthenticated landing
+     ==================================================================== -->
+<div class="flex flex-col items-center justify-center py-24 text-center">
+  <svg class="w-12 h-12 text-red-500 mb-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+  </svg>
+
+  <h1 class="text-4xl font-bold text-white mb-3">Mindwall</h1>
+  <p class="text-lg text-gray-400 mb-2 max-w-lg">
+    Privacy-first email security. Detect phishing and manipulation before it reaches your users.
+  </p>
+  <p class="text-sm text-gray-600 mb-8 max-w-md">
+    All analysis runs on your infrastructure using a local Ollama model.
+    No message content ever leaves this deployment.
+  </p>
+
+  <a href="/login"
+     class="inline-flex items-center gap-2 px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2 focus:ring-offset-gray-950">
+    Sign in to continue
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+    </svg>
+  </a>
+</div>
+
+{% else %}
+<!-- ====================================================================
+     Authenticated dashboard
+     ==================================================================== -->
+<div class="space-y-8">
+
+  <!-- Page header -->
+  <div>
+    <h1 class="text-2xl font-bold text-white">Dashboard</h1>
+    <p class="mt-1 text-sm text-gray-400">Welcome back, {{ user.email }}</p>
+  </div>
+
+  <!-- Status cards -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
+    <!-- System health -->
+    <div class="bg-gray-900 border border-gray-800 rounded-lg p-5">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-xs font-medium text-gray-500 uppercase tracking-wider">System</h3>
+        <span class="inline-flex items-center gap-1 text-xs text-green-400 font-medium">
+          <span class="w-1.5 h-1.5 rounded-full bg-green-400 inline-block"></span>
+          Operational
+        </span>
+      </div>
+      <p class="text-2xl font-bold text-white">Active</p>
+      <a href="/health/ready" target="_blank"
+         class="mt-2 text-xs text-gray-600 hover:text-gray-400 transition-colors block">
+        View health details →
+      </a>
+    </div>
+
+    <!-- Quarantine -->
+    <div class="bg-gray-900 border border-gray-800 rounded-lg p-5">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-xs font-medium text-gray-500 uppercase tracking-wider">Quarantine</h3>
+      </div>
+      <p class="text-2xl font-bold text-gray-600">—</p>
+      <p class="mt-2 text-xs text-gray-700">Available in Phase 5</p>
+    </div>
+
+    <!-- Messages analysed -->
+    <div class="bg-gray-900 border border-gray-800 rounded-lg p-5">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-xs font-medium text-gray-500 uppercase tracking-wider">Analysed</h3>
+      </div>
+      <p class="text-2xl font-bold text-gray-600">—</p>
+      <p class="mt-2 text-xs text-gray-700">Proxy not yet configured</p>
+    </div>
+
+  </div>
+
+  <!-- Getting started -->
+  <div class="bg-gray-900 border border-gray-800 rounded-lg p-6">
+    <h2 class="text-base font-semibold text-white mb-4">Getting Started</h2>
+    <ol class="space-y-3 text-sm text-gray-400 list-none">
+      <li class="flex items-start gap-3">
+        <span class="shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-gray-800 text-gray-500 text-xs font-medium mt-0.5">1</span>
+        <span>Register your existing mailbox — IMAP and SMTP credentials will be stored encrypted.</span>
+      </li>
+      <li class="flex items-start gap-3">
+        <span class="shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-gray-800 text-gray-500 text-xs font-medium mt-0.5">2</span>
+        <span>Configure your mail client to connect through the Mindwall proxy.</span>
+      </li>
+      <li class="flex items-start gap-3">
+        <span class="shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-gray-800 text-gray-500 text-xs font-medium mt-0.5">3</span>
+        <span>Mindwall analyses incoming messages across 12 manipulation dimensions.</span>
+      </li>
+      <li class="flex items-start gap-3">
+        <span class="shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-gray-800 text-gray-500 text-xs font-medium mt-0.5">4</span>
+        <span>Review flagged messages in the quarantine inbox and release or delete with full evidence.</span>
+      </li>
+    </ol>
+    <p class="mt-4 text-xs text-gray-700 border-t border-gray-800 pt-3">
+      Mailbox registration (Phase 2) and proxy activation (Phase 3) are not yet available.
+    </p>
+  </div>
+
+</div>
+{% endif %}
+
+{% endblock %}
