@@ -33,6 +33,7 @@ from app.messages.models import IngestionSource
 from app.messages.storage import get_raw_message_store
 from app.policies.constants import DIMENSION_LABELS
 from app.policies.verdict import VerdictThresholds
+from app.quarantine import service as quarantine_service
 
 log = structlog.get_logger(__name__)
 
@@ -171,6 +172,9 @@ async def message_detail(
     # Load the latest analysis run (if any)
     analysis = await analysis_service.get_latest_analysis(db, message_id)
 
+    # Load the quarantine item for this message (if any)
+    quarantine_item = await quarantine_service.get_quarantine_item_for_message(db, message_id)
+
     # Build a sorted dimension score list for the template
     dim_scores: list[dict] = []
     if analysis and analysis.dimension_scores:
@@ -200,6 +204,7 @@ async def message_detail(
             "analysis": analysis,
             "dim_scores": dim_scores,
             "analysis_enabled": settings.analysis_enabled,
+            "quarantine_item": quarantine_item,
         },
     )
 
@@ -248,6 +253,8 @@ async def analyze_message(
         llm_enabled=settings.llm_enabled,
         thresholds=thresholds,
         gateway_mode=settings.gateway_mode,
+        quarantine_soft_hold=settings.quarantine_soft_hold,
+        actor_user_id=current_user.user_id,
     )
 
     log.info(

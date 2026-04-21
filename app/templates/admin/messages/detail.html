@@ -21,6 +21,20 @@
       </h1>
       <p class="mt-1 text-xs text-gray-500 font-mono">sha256: {{ msg.raw_sha256 }}</p>
     </div>
+    {% if quarantine_item %}
+    <a href="/admin/quarantine/{{ quarantine_item.id }}"
+       class="flex-shrink-0 text-xs font-medium border rounded px-2.5 py-1.5 transition-colors
+         {% if quarantine_item.status in ['pending_review', 'in_review'] %}
+           bg-yellow-950 border-yellow-800 text-yellow-400 hover:border-yellow-600
+         {% elif quarantine_item.status == 'confirmed_malicious' %}
+           bg-red-950 border-red-800 text-red-400 hover:border-red-600
+         {% else %}
+           bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-500
+         {% endif %}">
+      Quarantine #{{ quarantine_item.id }}:
+      {{ quarantine_item.status.replace("_", " ").title() }} →
+    </a>
+    {% endif %}
   </div>
 
   <!-- Two-column layout: metadata left, body right -->

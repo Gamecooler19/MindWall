@@ -47,6 +47,10 @@ def _register_routers(app: FastAPI, templates: Jinja2Templates) -> None:
     app.include_router(admin_router)
     app.include_router(mailboxes_router)
 
+    from app.quarantine.router import router as quarantine_router
+
+    app.include_router(quarantine_router)
+
     settings = get_settings()
     if settings.message_lab_enabled:
         from app.messages.router import router as messages_lab_router

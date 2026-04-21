@@ -35,6 +35,7 @@ from app.messages.models import Message
 from app.messages.schemas import ParsedMessage
 from app.policies.constants import ManipulationDimension
 from app.policies.verdict import VerdictThresholds, compute_verdict
+from app.quarantine import service as quarantine_service
 
 log = structlog.get_logger(__name__)
 
@@ -148,6 +149,8 @@ async def run_analysis(
     llm_enabled: bool = True,
     thresholds: VerdictThresholds | None = None,
     gateway_mode: bool = False,
+    quarantine_soft_hold: bool = False,
+    actor_user_id: int | None = None,
 ) -> AnalysisRun:
     """Run the full Mindwall analysis pipeline for a single message.
 
@@ -327,6 +330,27 @@ async def run_analysis(
         overall_risk=overall_risk,
         is_degraded=is_degraded,
     )
+
+    # ------------------------------------------------------------------ #
+    # Step 9: Auto-quarantine
+    # ------------------------------------------------------------------ #
+    if quarantine_service.should_quarantine(verdict, quarantine_soft_hold):
+        try:
+            await quarantine_service.get_or_create_quarantine_item(
+                db,
+                message_id=msg.id,
+                analysis_run_id=run.id,
+                trigger_verdict=verdict,
+                risk_score_snapshot=round(overall_risk, 4),
+                actor_user_id=actor_user_id,
+            )
+            await db.commit()
+        except Exception:
+            log.exception(
+                "analysis.quarantine_failed",
+                message_id=msg.id,
+                run_id=run.id,
+            )
 
     return run
 

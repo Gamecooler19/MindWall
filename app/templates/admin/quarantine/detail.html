@@ -1,0 +1,362 @@
+{% extends "base.html" %}
+
+{% block title %}Quarantine #{{ item.id }} — Mindwall{% endblock %}
+
+{% block content %}
+
+<div class="space-y-6">
+
+  <!-- Header -->
+  <div class="flex items-start justify-between">
+    <div>
+      <div class="flex items-center gap-2 text-sm text-gray-500 mb-1">
+        <a href="/admin/" class="hover:text-gray-300 transition-colors">Admin</a>
+        <span>/</span>
+        <a href="/admin/quarantine/" class="hover:text-gray-300 transition-colors">Quarantine</a>
+        <span>/</span>
+        <span class="text-gray-300">#{{ item.id }}</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <h1 class="text-2xl font-bold text-white">
+          {{ msg.subject if msg else "(message deleted)" }}
+        </h1>
+        <span class="inline-flex items-center px-2.5 py-1 rounded text-xs font-medium border
+          {{ status_meta.badge }}">
+          {{ status_meta.label }}
+        </span>
+      </div>
+      {% if msg %}
+      <p class="mt-1 text-sm text-gray-400 font-mono">{{ msg.from_address }}</p>
+      {% endif %}
+    </div>
+    {% if msg %}
+    <a href="/admin/messages/{{ item.message_id }}"
+       class="text-xs text-blue-400 hover:text-blue-300 border border-blue-900 hover:border-blue-700
+              rounded px-2.5 py-1.5 transition-colors">
+      View in Message Lab →
+    </a>
+    {% endif %}
+  </div>
+
+  <!-- Two-column layout -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+    <!-- Left: quarantine summary + actions + audit -->
+    <div class="lg:col-span-1 space-y-4">
+
+      <!-- Quarantine summary -->
+      <div class="rounded-lg border border-gray-800 bg-gray-900 p-4 space-y-3">
+        <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Quarantine Info</h2>
+        <dl class="space-y-2 text-sm">
+          <div>
+            <dt class="text-xs text-gray-500">Trigger Verdict</dt>
+            <dd class="text-gray-200 font-mono text-xs">{{ item.trigger_verdict.replace("_", " ") }}</dd>
+          </div>
+          <div>
+            <dt class="text-xs text-gray-500">Risk Score</dt>
+            <dd>
+              {% if item.risk_score_snapshot is not none %}
+                {% set risk = item.risk_score_snapshot %}
+                <span class="font-mono text-sm
+                  {% if risk >= 0.85 %}text-red-400
+                  {% elif risk >= 0.65 %}text-orange-400
+                  {% elif risk >= 0.45 %}text-yellow-400
+                  {% else %}text-gray-300{% endif %}">
+                  {{ "%.3f"|format(risk) }}
+                </span>
+              {% else %}
+                <span class="text-gray-600">—</span>
+              {% endif %}
+            </dd>
+          </div>
+          <div>
+            <dt class="text-xs text-gray-500">Quarantined</dt>
+            <dd class="text-xs text-gray-400">{{ item.created_at.strftime('%Y-%m-%d %H:%M UTC') }}</dd>
+          </div>
+          {% if item.reviewed_at %}
+          <div>
+            <dt class="text-xs text-gray-500">Last Reviewed</dt>
+            <dd class="text-xs text-gray-400">{{ item.reviewed_at.strftime('%Y-%m-%d %H:%M UTC') }}</dd>
+          </div>
+          {% endif %}
+          {% if item.notes %}
+          <div>
+            <dt class="text-xs text-gray-500 mb-1">Analyst Notes</dt>
+            <dd class="text-xs text-gray-300 bg-gray-800 rounded p-2 whitespace-pre-wrap break-words">{{ item.notes }}</dd>
+          </div>
+          {% endif %}
+        </dl>
+      </div>
+
+      <!-- Review actions -->
+      {% if available_actions %}
+      <div class="rounded-lg border border-gray-800 bg-gray-900 p-4 space-y-3">
+        <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Review Actions</h2>
+        <form method="post" action="/admin/quarantine/{{ item.id }}/action" class="space-y-3">
+          <div>
+            <label for="action" class="text-xs text-gray-500 block mb-1">Action</label>
+            <select name="action" id="action" required
+              class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-200
+                     focus:outline-none focus:ring-2 focus:ring-blue-600">
+              {% for act in available_actions %}
+              <option value="{{ act.action }}">{{ act.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label for="note" class="text-xs text-gray-500 block mb-1">Note (optional)</label>
+            <textarea name="note" id="note" rows="3" maxlength="1000"
+              placeholder="Add an analyst note..."
+              class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-200
+                     focus:outline-none focus:ring-2 focus:ring-blue-600 resize-none"></textarea>
+          </div>
+          <button type="submit"
+            class="w-full rounded px-3 py-2 text-sm font-medium bg-blue-700 hover:bg-blue-600
+                   text-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500">
+            Apply Action
+          </button>
+        </form>
+      </div>
+      {% endif %}
+
+      <!-- Audit history -->
+      <div class="rounded-lg border border-gray-800 bg-gray-900 p-4 space-y-3">
+        <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Audit History</h2>
+        {% if item.audit_events %}
+        <ol class="space-y-3">
+          {% for event in item.audit_events %}
+          <li class="flex gap-3 text-xs">
+            <div class="flex-shrink-0 w-1 rounded-full
+              {% if 'created' in event.action %}bg-blue-500
+              {% elif 'release' in event.action %}bg-green-500
+              {% elif 'false_positive' in event.action %}bg-teal-500
+              {% elif 'malicious' in event.action %}bg-red-500
+              {% elif 'delete' in event.action %}bg-gray-600
+              {% else %}bg-gray-700{% endif %}
+              mt-0.5 mb-0.5"></div>
+            <div class="space-y-0.5 min-w-0">
+              <p class="text-gray-300 font-mono">{{ event.action }}</p>
+              {% if event.from_status or event.to_status %}
+              <p class="text-gray-500">
+                {% if event.from_status %}{{ event.from_status }}{% endif %}
+                {% if event.from_status and event.to_status %} → {% endif %}
+                {% if event.to_status %}{{ event.to_status }}{% endif %}
+              </p>
+              {% endif %}
+              {% if event.note %}
+              <p class="text-gray-400 break-words">{{ event.note }}</p>
+              {% endif %}
+              <p class="text-gray-600">{{ event.created_at.strftime('%Y-%m-%d %H:%M UTC') }}</p>
+            </div>
+          </li>
+          {% endfor %}
+        </ol>
+        {% else %}
+        <p class="text-xs text-gray-600">No audit events yet.</p>
+        {% endif %}
+      </div>
+
+    </div>
+
+    <!-- Right: message details + analysis -->
+    <div class="lg:col-span-2 space-y-4">
+
+      {% if msg %}
+      <!-- Message envelope -->
+      <div class="rounded-lg border border-gray-800 bg-gray-900 p-4 space-y-2">
+        <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Message Envelope</h2>
+        <dl class="space-y-2 text-sm">
+          <div>
+            <dt class="text-gray-500 text-xs">From</dt>
+            <dd class="text-gray-200 font-mono text-xs break-all">
+              {% if msg.from_display_name %}
+                <span class="text-white">{{ msg.from_display_name }}</span>
+                &lt;{{ msg.from_address }}&gt;
+              {% else %}
+                {{ msg.from_address or "—" }}
+              {% endif %}
+            </dd>
+          </div>
+          {% if msg.reply_to_address %}
+          <div>
+            <dt class="text-gray-500 text-xs">Reply-To</dt>
+            <dd class="text-red-300 font-mono text-xs break-all">{{ msg.reply_to_address }}</dd>
+          </div>
+          {% endif %}
+          {% if to_list %}
+          <div>
+            <dt class="text-gray-500 text-xs">To</dt>
+            <dd class="text-gray-300 font-mono text-xs">{{ to_list | join(', ') }}</dd>
+          </div>
+          {% endif %}
+          <div class="flex gap-6">
+            <div>
+              <dt class="text-gray-500 text-xs">DKIM</dt>
+              <dd class="{% if msg.header_dkim_signature_present %}text-green-400{% else %}text-gray-600{% endif %} text-xs">
+                {{ "present" if msg.header_dkim_signature_present else "absent" }}
+              </dd>
+            </div>
+            <div>
+              <dt class="text-gray-500 text-xs">Date</dt>
+              <dd class="text-gray-400 text-xs">
+                {% if msg.date %}{{ msg.date.strftime('%Y-%m-%d %H:%M UTC') }}{% else %}—{% endif %}
+              </dd>
+            </div>
+          </div>
+        </dl>
+      </div>
+
+      <!-- Body excerpt -->
+      {% if msg.text_plain %}
+      <div class="rounded-lg border border-gray-800 bg-gray-900 p-4">
+        <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Body (Plain Text)</h2>
+        <pre class="text-xs text-gray-300 whitespace-pre-wrap break-all font-mono max-h-48 overflow-y-auto">{{ msg.text_plain[:2000] }}{% if msg.text_plain|length > 2000 %}
+<span class="text-gray-600">[truncated — view full message in Message Lab]</span>{% endif %}</pre>
+      </div>
+      {% endif %}
+
+      <!-- URLs -->
+      {% if msg.urls %}
+      <div class="rounded-lg border border-gray-800 bg-gray-900 p-4">
+        <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+          URLs ({{ msg.urls | length }})
+        </h2>
+        <ul class="space-y-1">
+          {% for url in msg.urls[:15] %}
+          <li class="text-xs font-mono text-gray-400 break-all">
+            {% if url.link_text %}
+            <span class="text-gray-500 mr-1">[{{ url.link_text[:40] }}]</span>
+            {% endif %}
+            {{ url.normalized_url }}
+          </li>
+          {% endfor %}
+          {% if msg.urls | length > 15 %}
+          <li class="text-xs text-gray-600">+{{ msg.urls | length - 15 }} more — see Message Lab</li>
+          {% endif %}
+        </ul>
+      </div>
+      {% endif %}
+
+      <!-- Attachments -->
+      {% if msg.attachments %}
+      <div class="rounded-lg border border-gray-800 bg-gray-900 p-4">
+        <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+          Attachments ({{ msg.attachments | length }})
+        </h2>
+        <ul class="space-y-2">
+          {% for att in msg.attachments %}
+          <li class="flex items-center justify-between text-xs">
+            <span class="text-gray-300 font-mono">{{ att.filename or "(unnamed)" }}</span>
+            <span class="text-gray-500">{{ att.content_type or "—" }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+      {% endif %}{# end if msg #}
+
+      <!-- Analysis summary -->
+      {% if analysis %}
+      <div class="rounded-lg border border-gray-800 bg-gray-900 p-4 space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Security Analysis</h2>
+          {% if analysis.is_degraded %}
+          <span class="text-xs bg-yellow-950 border border-yellow-800 text-yellow-400 rounded px-2 py-0.5">
+            Degraded (LLM unavailable)
+          </span>
+          {% endif %}
+        </div>
+
+        <!-- Verdict + scores -->
+        <div class="flex items-center gap-4 flex-wrap">
+          <div>
+            <div class="text-xs text-gray-500 mb-1">Verdict</div>
+            <span class="inline-block px-2.5 py-1 rounded text-xs font-medium
+              {% if analysis.verdict in ['quarantine', 'escalate_to_admin', 'reject'] %}bg-red-900 text-red-300 border border-red-700
+              {% elif analysis.verdict == 'soft_hold' %}bg-orange-900 text-orange-300 border border-orange-700
+              {% elif analysis.verdict == 'allow_with_banner' %}bg-yellow-900 text-yellow-300 border border-yellow-700
+              {% else %}bg-green-900 text-green-300 border border-green-700{% endif %}">
+              {{ analysis.verdict.replace("_", " ").title() }}
+            </span>
+          </div>
+          <div>
+            <div class="text-xs text-gray-500 mb-1">Overall Risk</div>
+            <span class="font-mono text-lg
+              {% set r = analysis.overall_risk_score or 0 %}
+              {% if r >= 0.85 %}text-red-400
+              {% elif r >= 0.65 %}text-orange-400
+              {% elif r >= 0.45 %}text-yellow-400
+              {% else %}text-green-400{% endif %}">
+              {{ "%.3f"|format(analysis.overall_risk_score or 0) }}
+            </span>
+          </div>
+          <div>
+            <div class="text-xs text-gray-500 mb-1">Confidence</div>
+            <span class="font-mono text-sm text-gray-300">
+              {{ "%.0f%%"|format((analysis.confidence or 0) * 100) }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Rationale -->
+        {% if analysis.rationale %}
+        <div>
+          <div class="text-xs text-gray-500 mb-1">Rationale</div>
+          <p class="text-sm text-gray-300">{{ analysis.rationale }}</p>
+        </div>
+        {% endif %}
+
+        <!-- Dimension scores grid -->
+        {% if dim_scores %}
+        <div>
+          <div class="text-xs text-gray-500 mb-2">Manipulation Dimensions</div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {% for ds in dim_scores %}
+            <div class="flex items-center gap-2">
+              <div class="w-24 shrink-0 text-xs text-gray-400 truncate" title="{{ ds.label }}">{{ ds.label }}</div>
+              <div class="flex-1 bg-gray-800 rounded-full h-1.5">
+                <div class="rounded-full h-1.5
+                  {% if ds.score >= 0.7 %}bg-red-500
+                  {% elif ds.score >= 0.4 %}bg-orange-500
+                  {% else %}bg-blue-600{% endif %}"
+                  style="width: {{ (ds.score * 100)|round|int }}%"></div>
+              </div>
+              <div class="w-8 text-right text-xs font-mono
+                {% if ds.score >= 0.7 %}text-red-400
+                {% elif ds.score >= 0.4 %}text-orange-400
+                {% else %}text-gray-500{% endif %}">
+                {{ "%.2f"|format(ds.score) }}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Evidence -->
+        {% if analysis.evidence_json %}
+        {% set evidence_list = analysis.evidence_json | fromjson %}
+        {% if evidence_list %}
+        <div>
+          <div class="text-xs text-gray-500 mb-2">Evidence</div>
+          <ul class="space-y-1">
+            {% for ev in evidence_list %}
+            <li class="text-xs text-gray-400 flex gap-2">
+              <span class="text-orange-600 shrink-0">•</span>
+              <span>{{ ev }}</span>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+        {% endif %}
+
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}

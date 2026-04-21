@@ -117,6 +117,10 @@ class Settings(BaseSettings):
     # Feature flags
     # -----------------------------------------------------------------------
     gateway_mode: bool = False
+    # When True, SOFT_HOLD verdicts also create a quarantine item for review.
+    # When False (default), only QUARANTINE / ESCALATE_TO_ADMIN / REJECT verdicts
+    # trigger quarantine creation.
+    quarantine_soft_hold: bool = False
 
     # -----------------------------------------------------------------------
     # Validators
