@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Outbound #{{ msg.id }} — Mindwall{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-bold text-white">
+        Outbound Submission #{{ msg.id }}
+      </h1>
+      <p class="mt-1 text-sm text-gray-400">
+        Submitted {{ msg.submitted_at.strftime('%Y-%m-%d %H:%M:%S UTC') if msg.submitted_at else '—' }}
+        via proxy user <span class="font-mono text-gray-300">{{ msg.proxy_username }}</span>
+      </p>
+    </div>
+    <a href="/admin/outbound/" class="text-sm text-gray-400 hover:text-white transition-colors">
+      ← Outbound list
+    </a>
+  </div>
+
+  <!-- Status badges -->
+  <div class="flex gap-3">
+    <span class="px-3 py-1 rounded text-sm font-medium
+      {% if msg.delivery_mode == 'capture' %}bg-blue-900 text-blue-300
+      {% else %}bg-purple-900 text-purple-300{% endif %}">
+      Mode: {{ msg.delivery_mode }}
+    </span>
+    <span class="px-3 py-1 rounded text-sm font-medium
+      {% if msg.delivery_status == 'captured' or msg.delivery_status == 'relayed' %}bg-green-900 text-green-300
+      {% elif msg.delivery_status == 'failed' %}bg-red-900 text-red-300
+      {% else %}bg-gray-800 text-gray-400{% endif %}">
+      Status: {{ msg.delivery_status }}
+    </span>
+  </div>
+
+  {% if msg.relay_error %}
+  <div class="p-4 rounded bg-red-950 border border-red-800 text-sm text-red-300">
+    <p class="font-medium text-red-200 mb-1">Relay error</p>
+    <p class="font-mono text-xs">{{ msg.relay_error }}</p>
+  </div>
+  {% endif %}
+
+  <!-- Envelope -->
+  <div class="rounded-lg border border-gray-800 overflow-hidden">
+    <div class="px-4 py-2 bg-gray-900 border-b border-gray-800">
+      <span class="text-xs font-medium text-gray-400 uppercase tracking-wider">Envelope</span>
+    </div>
+    <div class="divide-y divide-gray-900">
+      <div class="px-4 py-3 flex gap-4">
+        <span class="w-32 text-xs text-gray-500 shrink-0">MAIL FROM</span>
+        <span class="font-mono text-sm text-gray-300">{{ msg.envelope_from }}</span>
+      </div>
+      <div class="px-4 py-3 flex gap-4">
+        <span class="w-32 text-xs text-gray-500 shrink-0">RCPT TO</span>
+        <div class="font-mono text-sm text-gray-300 space-y-0.5">
+          {% for addr in recipients %}
+          <div>{{ addr }}</div>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="px-4 py-3 flex gap-4">
+        <span class="w-32 text-xs text-gray-500 shrink-0">Subject</span>
+        <span class="text-sm text-gray-300">{{ msg.subject or '(no subject)' }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Storage -->
+  <div class="rounded-lg border border-gray-800 overflow-hidden">
+    <div class="px-4 py-2 bg-gray-900 border-b border-gray-800">
+      <span class="text-xs font-medium text-gray-400 uppercase tracking-wider">Storage</span>
+    </div>
+    <div class="divide-y divide-gray-900">
+      <div class="px-4 py-3 flex gap-4">
+        <span class="w-32 text-xs text-gray-500 shrink-0">Raw size</span>
+        <span class="font-mono text-sm text-gray-300">{{ msg.raw_size_bytes }} bytes</span>
+      </div>
+      <div class="px-4 py-3 flex gap-4">
+        <span class="w-32 text-xs text-gray-500 shrink-0">SHA-256</span>
+        <span class="font-mono text-xs text-gray-400 break-all">{{ msg.raw_sha256 }}</span>
+      </div>
+      <div class="px-4 py-3 flex gap-4">
+        <span class="w-32 text-xs text-gray-500 shrink-0">Store path</span>
+        <span class="font-mono text-xs text-gray-400">{{ msg.raw_storage_path or '(not stored)' }}</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

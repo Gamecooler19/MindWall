@@ -12,7 +12,7 @@ Mindwall sits between your users and their existing mail provider using local IM
 
 See [architecture.md](architecture.md) for the full system design.
 
-**Current status: Phase 9 — IMAP Proxy MVP**
+**Current status: Phase 10 — SMTP Proxy MVP**
 
 | Phase | Status | Description |
 |-------|--------|-------------|
@@ -25,7 +25,8 @@ See [architecture.md](architecture.md) for the full system design.
 | 7 | ✅ Complete | Docker stack, admin UI, policy/alerts/model-health/audit dashboards |
 | 8 | ✅ Complete | Policy Editor, Alerts & Incidents, Audit Log, Mailbox Profiles admin pages |
 | 9 | ✅ Complete | Read-only IMAP proxy MVP — full RFC 3501 subset for local clients |
-| 10 | Planned | SMTP proxy, outbound inspection, hardening |
+| 10 | ✅ Complete | SMTP submission proxy — AUTH PLAIN/LOGIN, capture/relay modes, admin review UI |
+| 11 | Planned | Outbound inspection, hardening, STARTTLS, gateway mode |
 ---
 
 ## Prerequisites
@@ -211,6 +212,101 @@ M.logout()
 | `IMAP_PROXY_HOST` | `0.0.0.0` | Bind address for the proxy listener |
 | `IMAP_PROXY_PORT` | `1993` | TCP port (use `1143` for Docker dev) |
 | `IMAP_PROXY_DISPLAY_HOST` | `127.0.0.1` | Host shown in proxy setup instructions |
+
+---
+
+## SMTP Proxy (Phase 10)
+
+Mindwall ships an SMTP submission proxy that your mail client connects to instead of your upstream SMTP server.  Outbound mail is inspected, stored, and (optionally) relayed to your real upstream server.
+
+### How it works
+
+1. Configure your mail client to use Mindwall as the outgoing SMTP server (port `1587`).
+2. Authenticate with your Mindwall **proxy credentials** (the same username/password shown on the mailbox detail page).
+3. Submit mail as normal.  Mindwall captures the raw message, records metadata (sender, recipients, subject, SHA-256, size), and either:
+   - **Capture mode** (default): stores the message locally for admin review.  Nothing leaves the server.
+   - **Relay mode**: forwards the message to your real upstream SMTP server using the stored upstream credentials.
+
+### Supported SMTP commands
+
+| Command | Description |
+|---------|-------------|
+| `EHLO` / `HELO` | Session initiation — always accepted |
+| `AUTH PLAIN` | Mindwall proxy credential authentication |
+| `AUTH LOGIN` | Two-step base64 challenge authentication |
+| `MAIL FROM` | Set envelope sender (requires auth first) |
+| `RCPT TO` | Add envelope recipients |
+| `DATA` | Submit message body |
+| `RSET` | Reset envelope |
+| `NOOP` | Keep-alive |
+| `QUIT` | Close connection |
+
+Unsupported commands (`VRFY`, `EXPN`, `TURN`, etc.) return `502 5.5.1 Command not implemented`.
+
+STARTTLS is deferred to a later phase.  Use a local-only or VPN-protected network for the proxy endpoint.
+
+### Running the proxy (local dev)
+
+```bash
+# Start separately from the FastAPI app:
+python workers/smtp_proxy.py
+
+# Override settings:
+SMTP_PROXY_PORT=1587 SMTP_DELIVERY_MODE=capture python workers/smtp_proxy.py
+```
+
+### Running with Docker
+
+```bash
+docker compose --env-file .env.docker up -d smtp_proxy
+# SMTP proxy listens on host port 1587 (mapped from container port 1587)
+```
+
+### Admin review
+
+Captured outbound messages are visible at **`/admin/outbound/`**.
+
+Each entry shows:
+- MAIL FROM address
+- RCPT TO list
+- Subject
+- Delivery mode and status
+- Raw size and SHA-256
+- On-disk storage path
+
+### Manual verification
+
+```bash
+python scripts/verify_smtp_proxy.py
+# Runs 22 assertions across greeting, auth, mail transaction, enforcement, and DB.
+```
+
+Or test with `smtplib`:
+
+```python
+import smtplib
+
+with smtplib.SMTP("localhost", 1587) as smtp:
+    smtp.ehlo("test.example.com")
+    smtp.login("mw_youruser_abc123", "your-proxy-password")
+    smtp.sendmail(
+        "from@example.com",
+        ["to@example.com"],
+        "Subject: Test\r\n\r\nHello",
+    )
+```
+
+### Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SMTP_PROXY_HOST` | `0.0.0.0` | Bind address for the proxy listener |
+| `SMTP_PROXY_PORT` | `1587` | TCP port |
+| `SMTP_PROXY_DISPLAY_HOST` | `127.0.0.1` | Host shown in proxy setup instructions |
+| `SMTP_DELIVERY_MODE` | `capture` | `capture` (store locally) or `relay` (forward upstream) |
+| `SMTP_RELAY_TIMEOUT_SECONDS` | `30` | Upstream SMTP connection timeout |
+| `SMTP_MAX_MESSAGE_BYTES` | `26214400` | Maximum message size (25 MB) |
+| `OUTBOUND_MESSAGE_STORE_PATH` | `./data/outbound_messages` | Where captured .eml files are stored |
 
 ---
 

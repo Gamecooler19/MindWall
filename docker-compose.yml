@@ -171,6 +171,75 @@ services:
     networks:
       - mindwall_net
 
+    healthcheck:
+      # The IMAP proxy is a TCP server — verify it accepts connections on port 1143.
+      test: ["CMD", "python", "-c",
+             "import socket; s=socket.create_connection(('localhost',1143),timeout=3); s.close()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # ---------------------------------------------------------------------------
+  # SMTP submission proxy — Mindwall outbound SMTP proxy server
+  # ---------------------------------------------------------------------------
+  smtp_proxy:
+    image: mindwall:dev
+    container_name: mindwall_smtp_proxy
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+    command: ["python", "workers/smtp_proxy.py"]
+    environment:
+      # ---- required ----
+      SECRET_KEY: ${SECRET_KEY}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      DATABASE_URL: postgresql+asyncpg://mindwall:mindwall@db:5432/mindwall
+      REDIS_URL: redis://redis:6379/0
+      DB_HOST: db
+      DB_PORT: "5432"
+
+      # ---- storage (inside container, must match app service) ----
+      BLOB_STORAGE_PATH: /app/data/blobs
+      RAW_MESSAGE_STORE_PATH: /app/data/raw_messages
+      OUTBOUND_MESSAGE_STORE_PATH: /app/data/outbound_messages
+
+      # ---- proxy listener ----
+      SMTP_PROXY_HOST: "0.0.0.0"
+      SMTP_PROXY_PORT: "1587"
+
+      # ---- delivery mode: "capture" stores locally; "relay" forwards upstream ----
+      SMTP_DELIVERY_MODE: "capture"
+      SMTP_RELAY_TIMEOUT_SECONDS: "30"
+
+      # ---- features (must match app) ----
+      ANALYSIS_ENABLED: "true"
+      LLM_ENABLED: "false"
+      GATEWAY_MODE: "false"
+
+    ports:
+      # SMTP_PROXY_DEV_PORT controls the host port. Container always listens on 1587.
+      - "${SMTP_PROXY_DEV_PORT:-1587}:1587"
+
+    volumes:
+      # Shared message data volume — same mount as app service
+      - mindwall_data:/app/data
+
+    networks:
+      - mindwall_net
+
+    healthcheck:
+      # The SMTP proxy is a TCP server — verify it accepts connections on port 1587.
+      test: ["CMD", "python", "-c",
+             "import socket; s=socket.create_connection(('localhost',1587),timeout=3); s.close()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
   # ---------------------------------------------------------------------------
   # Ollama — local LLM inference (optional)
   # ---------------------------------------------------------------------------

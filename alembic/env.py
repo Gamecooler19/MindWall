@@ -49,6 +49,7 @@ import app.mailboxes.models  # noqa: E402  — registers MailboxProfile with Bas
 import app.mailboxes.sync_models  # noqa: E402  — registers MailboxSyncState/MailboxItem
 import app.messages.models  # noqa: E402  — registers Message/Url/Attachment with Base.metadata
 import app.policies.models  # noqa: E402  — registers PolicySetting with Base.metadata
+import app.proxies.smtp.models  # noqa: E402  — registers OutboundMessage with Base.metadata
 import app.quarantine.models  # noqa: E402  — registers QuarantineItem/AuditEvent with Base.metadata
 import app.users.models  # noqa: F401, E402  — registers User with Base.metadata
 from app.db.base import Base  # noqa: E402

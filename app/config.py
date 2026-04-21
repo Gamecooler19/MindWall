@@ -97,6 +97,24 @@ class Settings(BaseSettings):
     connection_timeout_seconds: int = 10
 
     # -----------------------------------------------------------------------
+    # SMTP submission proxy (Phase 10)
+    # -----------------------------------------------------------------------
+    # Delivery mode: "capture" stores submissions locally for inspection;
+    # "relay" forwards them via the upstream SMTP config on the mailbox profile.
+    smtp_delivery_mode: str = "capture"
+
+    # Seconds to wait when connecting to the upstream SMTP relay.
+    smtp_relay_timeout_seconds: int = 30
+
+    # Maximum message size accepted by the SMTP submission proxy (bytes).
+    # Default 25 MB — same as the Message Lab upload limit.
+    smtp_max_message_bytes: int = 26_214_400
+
+    # Root directory for captured outbound .eml files.
+    # Uses the same two-level SHA-256 layout as raw_message_store_path.
+    outbound_message_store_path: Path = Path("./data/outbound_messages")
+
+    # -----------------------------------------------------------------------
     # Storage
     # -----------------------------------------------------------------------
     blob_storage_path: Path = Path("./data/blobs")

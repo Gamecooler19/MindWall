@@ -14,6 +14,8 @@ Routes:
   POST /admin/alerts/{id}/acknowledge   — acknowledge alert
   POST /admin/alerts/{id}/resolve       — resolve alert
   GET  /admin/mailboxes/                — mailbox profiles overview
+  GET  /admin/outbound/                 — outbound SMTP submissions list
+  GET  /admin/outbound/{id}             — outbound submission detail
 """
 
 from typing import Annotated
@@ -386,4 +388,85 @@ async def admin_mailboxes(
         request,
         "admin/mailboxes.html",
         {"user": current_user, "profiles": profiles},
+    )
+
+
+# ---------------------------------------------------------------------------
+# Outbound SMTP submissions
+# ---------------------------------------------------------------------------
+
+
+@router.get("/outbound/", response_class=HTMLResponse)
+async def outbound_list(
+    request: Request,
+    current_user: Annotated[UserContext, Depends(require_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    templates: Annotated[Jinja2Templates, Depends(get_templates)],
+    page: int = 1,
+) -> HTMLResponse:
+    """List recent outbound SMTP submissions (newest first, paginated)."""
+    from sqlalchemy import func, select
+
+    from app.proxies.smtp.models import OutboundMessage
+
+    page_size = 50
+    offset = (page - 1) * page_size
+
+    total = (
+        await db.execute(select(func.count()).select_from(OutboundMessage))
+    ).scalar_one()
+    result = await db.execute(
+        select(OutboundMessage)
+        .order_by(OutboundMessage.submitted_at.desc())
+        .limit(page_size)
+        .offset(offset)
+    )
+    messages = list(result.scalars().all())
+    total_pages = max(1, (total + page_size - 1) // page_size)
+
+    return templates.TemplateResponse(
+        request,
+        "admin/outbound_list.html",
+        {
+            "user": current_user,
+            "messages": messages,
+            "page": page,
+            "total_pages": total_pages,
+            "total": total,
+        },
+    )
+
+
+@router.get("/outbound/{outbound_id}", response_class=HTMLResponse)
+async def outbound_detail(
+    request: Request,
+    outbound_id: int,
+    current_user: Annotated[UserContext, Depends(require_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    templates: Annotated[Jinja2Templates, Depends(get_templates)],
+) -> HTMLResponse:
+    """Detail view for a single outbound SMTP submission."""
+    import json
+
+    from sqlalchemy import select
+
+    from app.proxies.smtp.models import OutboundMessage
+
+    result = await db.execute(
+        select(OutboundMessage).where(OutboundMessage.id == outbound_id)
+    )
+    msg = result.scalar_one_or_none()
+    if msg is None:
+        raise HTTPException(status_code=404, detail="Outbound message not found")
+
+    recipients = json.loads(msg.envelope_to_json)
+
+    return templates.TemplateResponse(
+        request,
+        "admin/outbound_detail.html",
+        {
+            "user": current_user,
+            "msg": msg,
+            "recipients": recipients,
+        },
     )
