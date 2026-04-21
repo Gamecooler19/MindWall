@@ -27,7 +27,7 @@ from app.analysis.models import AnalysisStatus, ModelProvider
 from app.analysis.ollama_client import OllamaClient, OllamaError, OllamaResponse
 from app.auth.service import hash_password
 from app.messages import service as msg_service
-from app.messages.models import IngestionSource
+from app.messages.models import IngestionSource, Message
 from app.policies.constants import ManipulationDimension, Verdict
 from app.users.models import User, UserRole
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -56,7 +56,7 @@ def _make_mock_ollama_client(
     if response_dict is None:
         response_dict = {
             "overall_risk": 0.35,
-            "dimension_scores": _ALL_DIM_SCORES,
+            "manipulation_dimensions": _ALL_DIM_SCORES,
             "summary": "Low-risk message detected by mock LLM.",
             "evidence": ["No suspicious signals found."],
             "recommended_action": "allow_with_banner",
@@ -83,19 +83,23 @@ def _make_bad_json_ollama_client() -> MagicMock:
     return client
 
 
-async def _ingest_test_message(db: AsyncSession, tmp_path: Path) -> Message:  # noqa: F821
-    """Ingest a plain-text .eml file and return the ORM record."""
-    from app.messages.storage import FileSystemRawMessageStore
+async def _ingest_test_message(db: AsyncSession, tmp_path: Path) -> Message:
+    """Ingest a plain-text .eml file and return the ORM record with relationships loaded."""
+    from app.messages.storage import RawMessageStore
 
-    store = FileSystemRawMessageStore(tmp_path)
+    store = RawMessageStore(tmp_path)
     eml_bytes = (FIXTURES / "plain_text.eml").read_bytes()
-    return await msg_service.ingest_raw_message(
+    ingested = await msg_service.ingest_raw_message(
         db=db,
         raw_bytes=eml_bytes,
-        source=IngestionSource.LAB,
+        source=IngestionSource.MESSAGE_LAB,
         store=store,
         mailbox_profile_id=None,
     )
+    # Reload with selectinload to ensure urls/attachments are eagerly loaded
+    msg = await msg_service.get_message_by_id(db, ingested.id)
+    assert msg is not None
+    return msg
 
 
 async def _insert_admin_user(db_engine, email: str, password: str) -> None:

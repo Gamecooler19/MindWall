@@ -12,7 +12,7 @@ Mindwall sits between your users and their existing mail provider using local IM
 
 See [architecture.md](architecture.md) for the full system design.
 
-**Current status: Phase 3 — Message Ingestion**
+**Current status: Phase 4 — Analysis Engine**
 
 | Phase | Status | Description |
 |-------|--------|-------------|
@@ -307,10 +307,67 @@ data/
 
 ---
 
-## Next Development Step (Phase 4)
+## Analysis Engine (Phase 4)
 
-Analysis engine:
-1. Deterministic security checks (SPF/DKIM/DMARC, display-name mismatch, suspicious URLs, risky attachments).
-2. Ollama client integration — build structured prompt, parse JSON output.
-3. 12-dimension score mapping.
-4. Policy engine — combine signals into a final verdict.
+Phase 4 adds deterministic security checks, local Ollama LLM orchestration, 12-dimension manipulation scoring, and policy verdict computation.
+
+### What was built
+
+- **Deterministic checks** (`app/analysis/deterministic.py`): 10 explicit rule-based checks covering display-name/reply-to mismatch, brand impersonation, link-text/href mismatch, suspicious URL structure (IP hosts, deep subdomains, credential keywords), risky attachments, credential/payment/urgency/fear language, missing DKIM/SPF, and HTML-only body.
+- **Ollama client** (`app/analysis/ollama_client.py`): Async HTTP client for the local Ollama `/api/generate` endpoint. Enforces localhost-only access (privacy guarantee). Raises `OllamaError` on timeout, connect errors, or bad responses. Never calls external APIs.
+- **Prompt builder + parser** (`app/analysis/prompt.py`): Builds a compact structured prompt with envelope, auth signals, body, URLs, and deterministic evidence. Requests strict JSON output with all 12 dimension scores. Parses and validates the response, clamping scores to `[0.0, 1.0]`. Returns `None` on parse failure.
+- **Analysis orchestrator** (`app/analysis/service.py`): Coordinates the full pipeline: deterministic checks → (optional) Ollama LLM call → retry with strict prompt if malformed → degrade gracefully on failure → combined score → verdict → DB persistence.
+- **Policy verdict engine** (`app/policies/verdict.py`): Converts combined risk + confidence into a stable verdict (`allow` → `allow_with_banner` → `soft_hold` → `quarantine` → `escalate_to_admin` / `reject`). Supports configurable thresholds, degraded-mode adjustment, and gateway mode.
+- **DB models** (`app/analysis/models.py`): `AnalysisRun` (one per analysis pipeline run) + `DimensionScore` (12 rows per run). Alembic migration `0004_create_analysis.py`.
+- **Message Lab integration**: Detail page shows full analysis results after clicking **Analyse**. Displays verdict badge, risk score, confidence, dimension score grid, deterministic findings, evidence list, degraded banner.
+
+### Analysis pipeline
+
+```
+ingest message
+    ↓
+deterministic checks   →  Finding list + risk score + dim scores
+    ↓
+build LLM prompt       →  structured prompt with evidence
+    ↓
+Ollama generate        →  raw JSON response
+    ↓
+parse + validate       →  LLMAnalysisResponse (or None → retry → degrade)
+    ↓
+combine scores         →  overall_risk = 0.4 * det + 0.6 * llm
+    ↓
+compute verdict        →  allow / allow_with_banner / soft_hold / quarantine / escalate
+    ↓
+persist AnalysisRun    →  DB + DimensionScore rows
+```
+
+### Degraded mode
+
+If Ollama is unreachable, returns invalid JSON, or is disabled:
+- `is_degraded = True`
+- `overall_risk = deterministic_risk_score`
+- `confidence = 0.35` (conservative)
+- Verdict computed with a +0.10 risk adjustment when `confidence < 0.5`
+- `status = "degraded"` recorded in DB
+- UI shows a yellow warning banner
+
+### New configuration keys (Phase 4)
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `LLM_ENABLED` | `true` | Set to `false` for deterministic-only analysis |
+| `OLLAMA_TIMEOUT_SECONDS` | `120.0` | Seconds to wait for Ollama generate response |
+| `ANALYSIS_PROMPT_VERSION` | `1.0` | Prompt version string (bump when schema changes) |
+| `VERDICT_THRESHOLD_ALLOW` | `0.25` | Risk score upper bound for ALLOW verdict |
+| `VERDICT_THRESHOLD_ALLOW_WITH_BANNER` | `0.45` | Upper bound for ALLOW_WITH_BANNER |
+| `VERDICT_THRESHOLD_SOFT_HOLD` | `0.65` | Upper bound for SOFT_HOLD |
+| `VERDICT_THRESHOLD_QUARANTINE` | `0.85` | Upper bound for QUARANTINE |
+
+---
+
+## Next Development Step (Phase 5)
+
+Enforcement:
+1. IMAP proxy with filtered mailbox views and quarantine virtual folder.
+2. Quarantine storage, review UI, and release/delete workflows.
+3. Admin alerting for high-risk messages.
