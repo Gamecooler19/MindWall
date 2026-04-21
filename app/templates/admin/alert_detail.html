@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}Alert #{{ alert.id }} — Mindwall{% endblock %}
+
+{% block content %}
+<div class="space-y-6 max-w-2xl">
+
+  <!-- Breadcrumb -->
+  <div class="flex items-center gap-2 text-sm text-gray-500">
+    <a href="/admin/" class="hover:text-white transition-colors">Admin</a>
+    <span>›</span>
+    <a href="/admin/alerts/" class="hover:text-white transition-colors">Alerts</a>
+    <span>›</span>
+    <span class="text-gray-300">#{{ alert.id }}</span>
+  </div>
+
+  <!-- Alert header -->
+  <div class="bg-gray-900 border border-gray-800 rounded-lg p-5">
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-xs font-semibold
+            {% if alert.severity == 'critical' %}text-red-400 bg-red-950 border border-red-800
+            {% elif alert.severity == 'high' %}text-orange-400 bg-orange-950 border border-orange-800
+            {% elif alert.severity == 'medium' %}text-yellow-400 bg-yellow-950 border border-yellow-800
+            {% else %}text-gray-400 bg-gray-800 border border-gray-700{% endif %}
+            rounded px-2 py-0.5">
+            {{ alert.severity | upper }}
+          </span>
+          <span class="text-xs rounded px-1.5 py-0.5
+            {% if alert.status == 'open' %}text-yellow-400 bg-yellow-950 border border-yellow-800
+            {% elif alert.status == 'acknowledged' %}text-blue-400 bg-blue-950 border border-blue-800
+            {% else %}text-green-400 bg-green-950 border border-green-800{% endif %}">
+            {{ alert.status }}
+          </span>
+        </div>
+        <h1 class="text-xl font-bold text-white">{{ alert.title }}</h1>
+      </div>
+    </div>
+
+    {% if alert.body %}
+    <div class="mt-4 pt-4 border-t border-gray-800">
+      <pre class="text-sm text-gray-400 whitespace-pre-wrap font-sans">{{ alert.body }}</pre>
+    </div>
+    {% endif %}
+
+    <!-- Metadata -->
+    <div class="mt-4 pt-4 border-t border-gray-800 grid grid-cols-2 gap-4 text-sm">
+      <div>
+        <dt class="text-gray-500 text-xs">Created</dt>
+        <dd class="text-gray-300">{{ alert.created_at[:19] if alert.created_at else '—' }}</dd>
+      </div>
+      <div>
+        <dt class="text-gray-500 text-xs">Trigger</dt>
+        <dd class="text-gray-300 font-mono text-xs">{{ alert.trigger_action or '—' }}</dd>
+      </div>
+      {% if alert.quarantine_item_id %}
+      <div>
+        <dt class="text-gray-500 text-xs">Quarantine Item</dt>
+        <dd>
+          <a href="/admin/quarantine/{{ alert.quarantine_item_id }}"
+             class="text-blue-400 hover:text-blue-300 text-xs transition-colors">
+            #{{ alert.quarantine_item_id }} →
+          </a>
+        </dd>
+      </div>
+      {% endif %}
+      {% if alert.message_id %}
+      <div>
+        <dt class="text-gray-500 text-xs">Message</dt>
+        <dd class="text-gray-300 font-mono text-xs">#{{ alert.message_id }}</dd>
+      </div>
+      {% endif %}
+      {% if alert.acknowledged_at %}
+      <div>
+        <dt class="text-gray-500 text-xs">Acknowledged</dt>
+        <dd class="text-gray-300">{{ alert.acknowledged_at[:19] }}</dd>
+      </div>
+      {% endif %}
+      {% if alert.resolved_at %}
+      <div>
+        <dt class="text-gray-500 text-xs">Resolved</dt>
+        <dd class="text-gray-300">{{ alert.resolved_at[:19] }}</dd>
+      </div>
+      {% endif %}
+      {% if alert.resolution_note %}
+      <div class="col-span-2">
+        <dt class="text-gray-500 text-xs">Resolution note</dt>
+        <dd class="text-gray-300 text-sm mt-0.5">{{ alert.resolution_note }}</dd>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Actions -->
+  {% if alert.status != 'resolved' %}
+  <div class="bg-gray-900 border border-gray-800 rounded-lg p-5 space-y-4">
+    <h2 class="text-sm font-semibold text-white">Actions</h2>
+
+    {% if alert.status == 'open' %}
+    <form method="post" action="/admin/alerts/{{ alert.id }}/acknowledge" class="flex items-end gap-2">
+      <div class="flex-1">
+        <label class="block text-xs text-gray-500 mb-1">Note (optional)</label>
+        <input type="text" name="note" placeholder="Acknowledging — investigating…"
+               class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white
+                      focus:outline-none focus:ring-1 focus:ring-blue-500" />
+      </div>
+      <button type="submit"
+              class="bg-blue-700 hover:bg-blue-600 text-white rounded px-4 py-2 text-sm transition-colors whitespace-nowrap">
+        Acknowledge
+      </button>
+    </form>
+    {% endif %}
+
+    <form method="post" action="/admin/alerts/{{ alert.id }}/resolve" class="flex items-end gap-2">
+      <div class="flex-1">
+        <label class="block text-xs text-gray-500 mb-1">Resolution note (optional)</label>
+        <input type="text" name="note" placeholder="False positive / mitigated / no action required"
+               class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white
+                      focus:outline-none focus:ring-1 focus:ring-blue-500" />
+      </div>
+      <button type="submit"
+              class="bg-green-700 hover:bg-green-600 text-white rounded px-4 py-2 text-sm transition-colors whitespace-nowrap">
+        Resolve
+      </button>
+    </form>
+  </div>
+  {% endif %}
+
+  <a href="/admin/alerts/" class="text-sm text-gray-500 hover:text-white transition-colors block">
+    ← Back to Alerts
+  </a>
+
+</div>
+{% endblock %}

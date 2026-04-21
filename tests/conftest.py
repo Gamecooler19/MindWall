@@ -18,10 +18,12 @@ Database:
 
 import os
 
+import app.alerts.models
 import app.analysis.models
 import app.mailboxes.models
 import app.mailboxes.sync_models
 import app.messages.models
+import app.policies.models
 import app.quarantine.models
 import app.users.models
 import pytest

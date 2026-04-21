@@ -227,6 +227,20 @@ async def delete_mailbox(
     log.info("mailbox.deleted", mailbox_id=profile.id, owner_id=profile.owner_id)
 
 
+async def count_mailboxes(db: AsyncSession) -> int:
+    """Return the total number of registered mailbox profiles (admin use)."""
+    from sqlalchemy import func
+
+    result = await db.execute(select(func.count()).select_from(MailboxProfile))
+    return result.scalar_one()
+
+
+async def list_all_mailboxes(db: AsyncSession) -> list[MailboxProfile]:
+    """Return all mailbox profiles across all users, ordered by creation (admin use)."""
+    result = await db.execute(select(MailboxProfile).order_by(MailboxProfile.created_at))
+    return list(result.scalars().all())
+
+
 # ---------------------------------------------------------------------------
 # Connectivity testing
 # ---------------------------------------------------------------------------

@@ -43,10 +43,12 @@ config.set_main_option("sqlalchemy.url", _settings.database_url)
 # Import all models so Alembic can detect schema changes via autogenerate.
 # Add new model modules here as they are created.
 # ---------------------------------------------------------------------------
+import app.alerts.models  # noqa: E402  — registers Alert with Base.metadata
 import app.analysis.models  # noqa: E402  — registers AnalysisRun/DimensionScore with Base.metadata
 import app.mailboxes.models  # noqa: E402  — registers MailboxProfile with Base.metadata
 import app.mailboxes.sync_models  # noqa: E402  — registers MailboxSyncState/MailboxItem
 import app.messages.models  # noqa: E402  — registers Message/Url/Attachment with Base.metadata
+import app.policies.models  # noqa: E402  — registers PolicySetting with Base.metadata
 import app.quarantine.models  # noqa: E402  — registers QuarantineItem/AuditEvent with Base.metadata
 import app.users.models  # noqa: F401, E402  — registers User with Base.metadata
 from app.db.base import Base  # noqa: E402

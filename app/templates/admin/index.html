@@ -19,9 +19,10 @@
     </a>
   </div>
 
-  <!-- Feature grid — placeholder cards for future phases -->
+  <!-- Feature grid -->
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 
+    <!-- Quarantine Inbox -->
     <a href="/admin/quarantine/"
        class="bg-gray-900 border border-gray-700 hover:border-gray-600 rounded-lg p-5 transition-colors">
       <div class="flex items-start justify-between mb-2">
@@ -31,55 +32,77 @@
           {{ pending_quarantine_count }} pending
         </span>
         {% else %}
-        <span class="text-xs text-green-600 bg-green-950 rounded px-1.5 py-0.5">Phase 5</span>
+        <span class="text-xs text-green-600 bg-green-950 rounded px-1.5 py-0.5">Clear</span>
         {% endif %}
       </div>
       <p class="text-sm text-gray-500">Review and release suspicious messages with full evidence trails.</p>
-      <p class="mt-3 text-xs text-gray-600">Quarantine → Review → Release / Confirm →</p>
+      <p class="mt-3 text-xs text-gray-600">Review → Release / Confirm →</p>
     </a>
 
-    <div class="bg-gray-900 border border-gray-800 rounded-lg p-5 opacity-60">
+    <!-- Policy Editor -->
+    <a href="/admin/policy/"
+       class="bg-gray-900 border border-gray-700 hover:border-gray-600 rounded-lg p-5 transition-colors">
       <div class="flex items-start justify-between mb-2">
         <h3 class="font-medium text-white">Policy Editor</h3>
-        <span class="text-xs text-gray-600 bg-gray-800 rounded px-1.5 py-0.5">Phase 5</span>
+        <span class="text-xs text-blue-400 bg-blue-950 border border-blue-800 rounded px-1.5 py-0.5">Live</span>
       </div>
-      <p class="text-sm text-gray-500">Configure per-dimension thresholds, allow/block lists, and verdicts.</p>
-    </div>
+      <p class="text-sm text-gray-500">Configure verdict thresholds, LLM flags, and IMAP sync settings.</p>
+      <p class="mt-3 text-xs text-gray-600">Edit policy →</p>
+    </a>
 
+    <!-- Message Lab -->
     <a href="/admin/messages/"
        class="bg-gray-900 border border-gray-700 hover:border-gray-600 rounded-lg p-5 transition-colors">
       <div class="flex items-start justify-between mb-2">
         <h3 class="font-medium text-white">Message Lab</h3>
-        <span class="text-xs text-green-600 bg-green-950 rounded px-1.5 py-0.5">Phase 3</span>
+        <span class="text-xs text-green-600 bg-green-950 rounded px-1.5 py-0.5">Live</span>
       </div>
       <p class="text-sm text-gray-500">Upload and inspect raw .eml files to test the ingestion pipeline.</p>
-      <p class="mt-3 text-xs text-gray-600">Upload → parse → store → view →</p>
+      <p class="mt-3 text-xs text-gray-600">Upload → parse → store →</p>
     </a>
 
-    <div class="bg-gray-900 border border-gray-800 rounded-lg p-5 opacity-60">
+    <!-- Mailbox Profiles -->
+    <a href="/admin/mailboxes/"
+       class="bg-gray-900 border border-gray-700 hover:border-gray-600 rounded-lg p-5 transition-colors">
       <div class="flex items-start justify-between mb-2">
         <h3 class="font-medium text-white">Mailbox Profiles</h3>
-        <span class="text-xs text-gray-600 bg-gray-800 rounded px-1.5 py-0.5">Phase 2</span>
+        {% if mailbox_count is not none %}
+        <span class="text-xs text-gray-400 bg-gray-800 rounded px-1.5 py-0.5">{{ mailbox_count }} registered</span>
+        {% endif %}
       </div>
-      <p class="text-sm text-gray-500">Manage registered upstream mailboxes and proxy credential assignments.</p>
-    </div>
+      <p class="text-sm text-gray-500">All registered upstream mailboxes and proxy credential assignments.</p>
+      <p class="mt-3 text-xs text-gray-600">View all mailboxes →</p>
+    </a>
 
-    <div class="bg-gray-900 border border-gray-800 rounded-lg p-5 opacity-60">
+    <!-- Model Health -->
+    <a href="/admin/health/model"
+       class="bg-gray-900 border border-gray-700 hover:border-gray-600 rounded-lg p-5 transition-colors">
       <div class="flex items-start justify-between mb-2">
         <h3 class="font-medium text-white">Model Health</h3>
-        <span class="text-xs text-gray-600 bg-gray-800 rounded px-1.5 py-0.5">Phase 4</span>
+        <span class="text-xs text-green-600 bg-green-950 rounded px-1.5 py-0.5">Live</span>
       </div>
       <p class="text-sm text-gray-500">Ollama inference status, model latency, and degraded-mode indicators.</p>
-    </div>
+      <p class="mt-3 text-xs text-gray-600">View model stats →</p>
+    </a>
 
-    <div class="bg-gray-900 border border-gray-800 rounded-lg p-5 opacity-60">
+    <!-- Alerts & Incidents -->
+    <a href="/admin/alerts/"
+       class="bg-gray-900 border border-gray-700 hover:border-gray-600 rounded-lg p-5 transition-colors">
       <div class="flex items-start justify-between mb-2">
         <h3 class="font-medium text-white">Alerts &amp; Incidents</h3>
-        <span class="text-xs text-gray-600 bg-gray-800 rounded px-1.5 py-0.5">Phase 5</span>
+        {% if open_alerts_count and open_alerts_count > 0 %}
+        <span class="text-xs text-orange-400 bg-orange-950 border border-orange-800 rounded px-1.5 py-0.5">
+          {{ open_alerts_count }} open
+        </span>
+        {% else %}
+        <span class="text-xs text-green-600 bg-green-950 rounded px-1.5 py-0.5">Clear</span>
+        {% endif %}
       </div>
       <p class="text-sm text-gray-500">Evidence-backed admin alerts and triage workflow for high-risk messages.</p>
-    </div>
+      <p class="mt-3 text-xs text-gray-600">View alerts →</p>
+    </a>
 
+    <!-- System Health -->
     <a href="/health/ready" target="_blank"
        class="bg-gray-900 border border-gray-700 hover:border-gray-600 rounded-lg p-5 transition-colors">
       <div class="flex items-start justify-between mb-2">
@@ -92,16 +115,18 @@
 
   </div>
 
-  <!-- Audit log placeholder -->
-  <div class="bg-gray-900 border border-gray-800 rounded-lg p-5 opacity-60">
+  <!-- Audit log -->
+  <a href="/admin/audit/"
+     class="block bg-gray-900 border border-gray-700 hover:border-gray-600 rounded-lg p-5 transition-colors">
     <div class="flex items-start justify-between mb-2">
       <h3 class="font-medium text-white">Audit Log</h3>
-      <span class="text-xs text-gray-600 bg-gray-800 rounded px-1.5 py-0.5">Phase 6</span>
+      <span class="text-xs text-green-600 bg-green-950 rounded px-1.5 py-0.5">Live</span>
     </div>
     <p class="text-sm text-gray-500">
       Immutable record of every action: logins, quarantine decisions, policy changes, releases.
     </p>
-  </div>
+    <p class="mt-2 text-xs text-gray-600">View audit log →</p>
+  </a>
 
   <!-- Session info -->
   <div class="bg-gray-900 border border-gray-800 rounded-lg p-5">
@@ -129,3 +154,4 @@
 </div>
 
 {% endblock %}
+
