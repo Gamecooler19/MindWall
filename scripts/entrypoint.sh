@@ -52,8 +52,17 @@ if [ "${MINDWALL_CREATE_ADMIN:-false}" = "true" ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# 4. Start the web server
 # ---------------------------------------------------------------------------
+# 4. Start the requested process
+# ---------------------------------------------------------------------------
+# If arguments were passed (e.g. via docker-compose command: [...]) run them
+# instead of the default uvicorn web server.  This allows workers to share the
+# same image while still running migrations and waiting for the DB.
+if [ "$#" -gt 0 ]; then
+    echo "[entrypoint] Delegating to command: $*"
+    exec "$@"
+fi
+
 echo "[entrypoint] Starting uvicorn on 0.0.0.0:8000..."
 exec python -m uvicorn app.main:app \
     --host 0.0.0.0 \

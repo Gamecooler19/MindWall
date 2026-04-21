@@ -126,6 +126,52 @@ services:
       start_period: 10s
 
   # ---------------------------------------------------------------------------
+  # IMAP proxy — read-only Mindwall IMAP proxy server
+  # ---------------------------------------------------------------------------
+  imap_proxy:
+    image: mindwall:dev
+    container_name: mindwall_imap_proxy
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+    command: ["python", "workers/imap_proxy.py"]
+    environment:
+      # ---- required ----
+      SECRET_KEY: ${SECRET_KEY}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      DATABASE_URL: postgresql+asyncpg://mindwall:mindwall@db:5432/mindwall
+      REDIS_URL: redis://redis:6379/0
+      DB_HOST: db
+      DB_PORT: "5432"
+
+      # ---- storage (inside container, must match app service) ----
+      BLOB_STORAGE_PATH: /app/data/blobs
+      RAW_MESSAGE_STORE_PATH: /app/data/raw_messages
+
+      # ---- proxy listener ----
+      IMAP_PROXY_HOST: "0.0.0.0"
+      IMAP_PROXY_PORT: "1143"
+
+      # ---- features (must match app) ----
+      ANALYSIS_ENABLED: "true"
+      LLM_ENABLED: "false"
+      GATEWAY_MODE: "false"
+
+    ports:
+      # IMAP_PROXY_DEV_PORT controls the host port. Container always listens on 1143.
+      - "${IMAP_PROXY_DEV_PORT:-1143}:1143"
+
+    volumes:
+      # Shared message data volume — same mount as app service
+      - mindwall_data:/app/data
+
+    networks:
+      - mindwall_net
+
+  # ---------------------------------------------------------------------------
   # Ollama — local LLM inference (optional)
   # ---------------------------------------------------------------------------
   # Ollama is defined but not started by default.

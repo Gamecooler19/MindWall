@@ -12,17 +12,20 @@ Mindwall sits between your users and their existing mail provider using local IM
 
 See [architecture.md](architecture.md) for the full system design.
 
-**Current status: Phase 4 — Analysis Engine**
+**Current status: Phase 9 — IMAP Proxy MVP**
 
 | Phase | Status | Description |
 |-------|--------|-------------|
 | 1 | ✅ Complete | Project skeleton, config, auth, health endpoints, DB/Redis wiring |
 | 2 | ✅ Complete | Mailbox registration, credential encryption, proxy setup instructions |
 | 3 | ✅ Complete | RFC 5322 parsing, MIME normalization, HTML sanitization, URL extraction, Message Lab UI |
-| 4 | Planned | Analysis engine — deterministic checks + Ollama LLM integration |
-| 5 | Planned | IMAP/SMTP proxies, enforcement, quarantine UI, admin alerting |
-| 6 | Planned | Workers, observability, hardening |
-q11
+| 4 | ✅ Complete | Analysis engine — deterministic checks + Ollama LLM integration |
+| 5 | ✅ Complete | Quarantine storage, review UI, release/delete, audit trail |
+| 6 | ✅ Complete | IMAP sync worker, background ingestion from upstream mailboxes |
+| 7 | ✅ Complete | Docker stack, admin UI, policy/alerts/model-health/audit dashboards |
+| 8 | ✅ Complete | Policy Editor, Alerts & Incidents, Audit Log, Mailbox Profiles admin pages |
+| 9 | ✅ Complete | Read-only IMAP proxy MVP — full RFC 3501 subset for local clients |
+| 10 | Planned | SMTP proxy, outbound inspection, hardening |
 ---
 
 ## Prerequisites
@@ -134,6 +137,80 @@ Users register their upstream IMAP/SMTP credentials through the web UI at `/mail
 - Upstream passwords are encrypted at rest with Fernet (AES-128-CBC + HMAC-SHA256) using the `ENCRYPTION_KEY`.
 - Proxy passwords are stored only as bcrypt hashes — they cannot be recovered. If you lose yours, use the "Reset proxy password" button.
 - No credential is ever logged or exposed in API responses.
+
+---
+
+## IMAP Proxy (Phase 9)
+
+Mindwall ships a read-only IMAP proxy server that your mail client connects to instead of your upstream mailbox. It authenticates with Mindwall proxy credentials and presents a filtered view of your mailbox backed by Mindwall's locally indexed messages.
+
+### Virtual folders exposed
+
+| Folder | Contents |
+|--------|----------|
+| `INBOX` | Messages with `VISIBLE` status (passed analysis) |
+| `Mindwall/Quarantine` | Messages with `QUARANTINED` or `HIDDEN` status |
+
+### Supported commands
+
+`CAPABILITY`, `NOOP`, `LOGOUT`, `LOGIN`, `LIST`, `SELECT`, `EXAMINE`, `STATUS`, `UID SEARCH`, `UID FETCH`, `FETCH`, `SEARCH`, `CLOSE`
+
+### Mutation commands are rejected
+
+`STORE`, `COPY`, `APPEND`, `EXPUNGE`, `CREATE`, `DELETE`, `RENAME`, and similar write operations return `NO [CANNOT]`. This proxy is read-only in Phase 9.
+
+### Running the proxy (local dev)
+
+```bash
+# Start separately from the FastAPI app:
+python workers/imap_proxy.py
+
+# Override port for local dev (default is 1993):
+IMAP_PROXY_PORT=1143 python workers/imap_proxy.py
+```
+
+### Running with Docker (Phase 9 stack)
+
+```bash
+docker compose up -d
+# IMAP proxy listens on host port 1143 (mapped from container port 1143)
+```
+
+### Manual verification with Python imaplib
+
+```python
+import imaplib
+
+M = imaplib.IMAP4("localhost", 1143)
+print(M.capability())
+
+# Log in with your Mindwall proxy credentials (visible on the mailbox detail page)
+M.login("mw_youruser_abc123", "your-proxy-password")
+
+typ, folders = M.list()
+for f in folders:
+    print(f)
+
+M.select("INBOX")
+typ, data = M.uid("search", "ALL")
+print("UIDs:", data)
+
+# Fetch the first message if any
+uids = data[0].split()
+if uids:
+    typ, msg = M.uid("fetch", uids[0], "(RFC822.SIZE FLAGS)")
+    print(msg)
+
+M.logout()
+```
+
+### Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `IMAP_PROXY_HOST` | `0.0.0.0` | Bind address for the proxy listener |
+| `IMAP_PROXY_PORT` | `1993` | TCP port (use `1143` for Docker dev) |
+| `IMAP_PROXY_DISPLAY_HOST` | `127.0.0.1` | Host shown in proxy setup instructions |
 
 ---
 
