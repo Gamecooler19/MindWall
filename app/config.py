@@ -123,6 +123,17 @@ class Settings(BaseSettings):
     quarantine_soft_hold: bool = False
 
     # -----------------------------------------------------------------------
+    # IMAP sync (Phase 6)
+    # -----------------------------------------------------------------------
+    # Seconds to wait for individual IMAP operations during sync.
+    imap_sync_timeout_seconds: int = 30
+    # Default folder to sync when none is specified.
+    imap_sync_default_folder: str = "INBOX"
+    # Maximum number of new UIDs to process in a single sync run.
+    # Limits memory usage and keeps individual sync runs short.
+    imap_sync_batch_size: int = 50
+
+    # -----------------------------------------------------------------------
     # Validators
     # -----------------------------------------------------------------------
 

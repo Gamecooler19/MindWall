@@ -371,3 +371,91 @@ Enforcement:
 1. IMAP proxy with filtered mailbox views and quarantine virtual folder.
 2. Quarantine storage, review UI, and release/delete workflows.
 3. Admin alerting for high-risk messages.
+---
+
+## Completed: Phase 6 — Upstream IMAP Sync + Mailbox Virtualization
+
+### What was built
+
+Phase 6 implements the backend foundation for pulling messages from upstream
+IMAP servers into Mindwall's local store — without building the full IMAP
+protocol proxy server yet.
+
+**New modules:**
+
+| Module | Purpose |
+|--------|---------|
+| `app/proxies/imap/client.py` | Async-friendly upstream IMAP client wrapping `imaplib` |
+| `app/mailboxes/sync_models.py` | ORM models: `MailboxSyncState`, `MailboxItem` |
+| `app/mailboxes/sync_service.py` | Sync orchestrator: auth, fetch, ingest, analyze, quarantine |
+| `app/mailboxes/view_service.py` | Virtual inbox layer: visible/quarantined/pending views |
+| `app/mailboxes/sync_router.py` | Admin routes: sync status, trigger, inbox, quarantine, item detail |
+| `alembic/versions/0006_create_sync_tables.py` | Migration for new tables |
+| `app/templates/admin/mailboxes/` | 3 new admin templates |
+
+### How upstream sync works
+
+1. Admin triggers sync via `POST /admin/mailboxes/{id}/sync`
+2. Sync service loads or initializes `MailboxSyncState` for the folder
+3. Decrypts upstream IMAP credentials with `CredentialEncryptor`
+4. Connects to upstream IMAP via `UpstreamImapClient` (SSL/TLS, STARTTLS, or plain)
+5. SELECTs the folder; detects UIDVALIDITY resets
+6. Fetches UIDs above `last_seen_uid` (up to `batch_size`)
+7. For each new UID: fetch raw bytes → ingest → analyze → quarantine decision → record `MailboxItem`
+8. Updates checkpoint (`last_seen_uid`, `last_sync_at`, `sync_status`)
+9. Commits and returns `SyncResult` summary
+
+**Sync is idempotent** — re-syncing the same UIDs is safe.
+
+### How mailbox virtualization works
+
+`view_service.py` exposes filtered views over `MailboxItem`:
+
+| View | Visibilities included |
+|------|-----------------------|
+| `get_visible_inbox` | `VISIBLE` |
+| `get_quarantine_inbox` | `QUARANTINED`, `HIDDEN` |
+| `get_pending_items` | `PENDING` |
+
+Each item is enriched with its associated `Message`, `AnalysisRun`,
+and `QuarantineItem` in a single bulk query.
+
+### How degraded/error sync states work
+
+- **Auth failures**: `sync_status=ERROR`, `failed_auth=True`, state committed immediately
+- **Connection failures**: `sync_status=ERROR`, `failed_connection=True`
+- **Per-message failures**: error recorded on `MailboxItem`, sync continues to next UID
+- **Partial sync**: `sync_status=PARTIAL` if some messages ingested and some failed
+- UIDVALIDITY reset triggers a full re-sync from UID 0
+
+### New configuration keys (Phase 6)
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `IMAP_SYNC_TIMEOUT_SECONDS` | `30` | IMAP connection/operation timeout |
+| `IMAP_SYNC_DEFAULT_FOLDER` | `INBOX` | Default folder when triggering sync from UI |
+| `IMAP_SYNC_BATCH_SIZE` | `50` | Max new UIDs to fetch per sync run |
+
+### Admin UI
+
+- `GET /admin/mailboxes/{id}/sync` — sync status, per-folder checkpoints, item counts, trigger form
+- `GET /admin/mailboxes/{id}/inbox` — Mindwall-visible messages
+- `GET /admin/mailboxes/{id}/quarantine` — quarantined/hidden messages
+- `GET /admin/mailboxes/{id}/items/{item_id}` — full item detail with analysis
+
+### What is NOT included yet
+
+- Full IMAP proxy protocol server (future phase)
+- Background worker / scheduled sync (future phase)
+- IMAP IDLE push support (future phase)
+
+---
+
+## Next Development Step (Phase 7)
+
+Background workers and observability:
+1. Async background sync worker (APScheduler or similar)
+2. Redis-backed task queue for analysis jobs
+3. Prometheus metrics: sync latency, quarantine rate, model health
+4. Health endpoint upgrades: Ollama, Redis, background workers
+5. End-to-end integration tests against a real IMAP sandbox

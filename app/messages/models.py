@@ -27,6 +27,7 @@ class IngestionSource(enum.StrEnum):
 
     MESSAGE_LAB = "message_lab"
     IMAP_PROXY = "imap_proxy"
+    IMAP_SYNC = "imap_sync"
     SMTP_GATEWAY = "smtp_gateway"
 
 

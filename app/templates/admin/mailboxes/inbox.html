@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% if view == 'quarantine' %}
+  {% set page_title = "Quarantine - " + profile.email_address %}
+{% else %}
+  {% set page_title = "Inbox - " + profile.email_address %}
+{% endif %}
+{% block title %}{{ page_title }} - Mindwall{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-6xl px-4 py-8">
+
+  <!-- Breadcrumb -->
+  <nav class="text-sm text-gray-400 mb-6">
+    <a href="/admin/" class="hover:text-white">Admin</a>
+    <span class="mx-2">/</span>
+    <a href="/mailboxes/" class="hover:text-white">Mailboxes</a>
+    <span class="mx-2">/</span>
+    <a href="/admin/mailboxes/{{ profile.id }}/sync" class="hover:text-white">{{ profile.display_name }}</a>
+    <span class="mx-2">/</span>
+    <span class="text-gray-200">{% if view == 'quarantine' %}Quarantine{% else %}Inbox{% endif %}</span>
+  </nav>
+
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-white">
+        {% if view == 'quarantine' %}Quarantine View{% else %}Virtual Inbox{% endif %}
+      </h1>
+      <p class="text-gray-400 mt-1">{{ profile.email_address }}</p>
+    </div>
+    <div class="flex gap-2">
+      <a href="/admin/mailboxes/{{ profile.id }}/inbox"
+         class="rounded-md px-3 py-1.5 text-sm {% if view == 'inbox' %}bg-gray-600 text-white{% else %}text-gray-400 hover:text-white{% endif %} transition-colors">
+        Inbox
+      </a>
+      <a href="/admin/mailboxes/{{ profile.id }}/quarantine"
+         class="rounded-md px-3 py-1.5 text-sm {% if view == 'quarantine' %}bg-yellow-700 text-white{% else %}text-gray-400 hover:text-white{% endif %} transition-colors">
+        Quarantine
+      </a>
+    </div>
+  </div>
+
+  <!-- Message list -->
+  {% if items %}
+  <div class="overflow-hidden rounded-lg border border-gray-700">
+    <table class="min-w-full divide-y divide-gray-700">
+      <thead class="bg-gray-800">
+        <tr>
+          <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">From</th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Subject</th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Visibility</th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Risk</th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Date</th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="bg-gray-900 divide-y divide-gray-800">
+        {% for vi in items %}
+        {% set item = vi.mailbox_item %}
+        {% set msg = vi.message %}
+        {% set analysis = vi.analysis %}
+        <tr class="hover:bg-gray-800 transition-colors">
+          <td class="px-4 py-3 text-sm">
+            {% if msg %}
+            <div class="text-gray-200 font-medium truncate max-w-[180px]">{{ msg.from_display_name or msg.from_address or '-' }}</div>
+            <div class="text-gray-500 text-xs truncate max-w-[180px]">{{ msg.from_address or '' }}</div>
+            {% else %}
+            <span class="text-gray-500">-</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-3 text-sm text-gray-200 max-w-xs truncate">
+            {{ msg.subject if msg else item.ingestion_error or 'No subject' }}
+          </td>
+          <td class="px-4 py-3 text-sm">
+            {% if item.visibility == 'visible' %}
+              <span class="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-green-900 text-green-300">Visible</span>
+            {% elif item.visibility == 'quarantined' %}
+              <span class="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-red-900 text-red-300">Quarantined</span>
+            {% elif item.visibility == 'hidden' %}
+              <span class="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-yellow-900 text-yellow-300">Hidden</span>
+            {% elif item.visibility == 'pending' %}
+              <span class="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-gray-700 text-gray-300">Pending</span>
+            {% else %}
+              <span class="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-red-900 text-red-400">Error</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-3 text-sm">
+            {% if analysis and analysis.overall_risk_score is not none %}
+              {% set risk = analysis.overall_risk_score %}
+              <span class="font-mono {% if risk >= 0.65 %}text-red-400{% elif risk >= 0.45 %}text-yellow-400{% else %}text-green-400{% endif %}">
+                {{ "%.2f"|format(risk) }}
+              </span>
+            {% else %}
+              <span class="text-gray-500">-</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-3 text-sm text-gray-400">
+            {% if msg and msg.date %}{{ msg.date|string|truncate(10, True, '') }}{% else %}-{% endif %}
+          </td>
+          <td class="px-4 py-3 text-sm">
+            <div class="flex items-center gap-2">
+              <a href="/admin/mailboxes/{{ profile.id }}/items/{{ item.id }}"
+                 class="text-blue-400 hover:text-blue-300 text-xs">Detail</a>
+              {% if msg %}
+              <a href="/admin/messages/{{ msg.id }}"
+                 class="text-gray-400 hover:text-white text-xs">Message</a>
+              {% endif %}
+              {% if vi.quarantine_item %}
+              <a href="/admin/quarantine/{{ vi.quarantine_item.id }}"
+                 class="text-yellow-400 hover:text-yellow-300 text-xs">Review</a>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="rounded-lg border border-gray-700 bg-gray-800 p-12 text-center">
+    <svg class="mx-auto h-10 w-10 text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+    </svg>
+    <p class="text-gray-400 text-sm">
+      {% if view == 'quarantine' %}No quarantined messages.{% else %}No messages in the virtual inbox yet.{% endif %}
+    </p>
+    <a href="/admin/mailboxes/{{ profile.id }}/sync"
+       class="inline-block mt-4 text-sm text-red-400 hover:text-red-300">
+      Go to sync page &rarr;
+    </a>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

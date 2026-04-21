@@ -41,11 +41,13 @@ def _register_routers(app: FastAPI, templates: Jinja2Templates) -> None:
     from app.auth.router import router as auth_router
     from app.health.router import router as health_router
     from app.mailboxes.router import router as mailboxes_router
+    from app.mailboxes.sync_router import router as mailboxes_sync_router
 
     app.include_router(health_router)
     app.include_router(auth_router)
     app.include_router(admin_router)
     app.include_router(mailboxes_router)
+    app.include_router(mailboxes_sync_router)
 
     from app.quarantine.router import router as quarantine_router
 
