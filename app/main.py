@@ -6,6 +6,7 @@ The create_app() factory is used both for production startup and for test
 fixture overrides. The module-level `app` instance is what uvicorn loads.
 """
 
+import json
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -45,6 +46,12 @@ def _register_routers(app: FastAPI, templates: Jinja2Templates) -> None:
     app.include_router(auth_router)
     app.include_router(admin_router)
     app.include_router(mailboxes_router)
+
+    settings = get_settings()
+    if settings.message_lab_enabled:
+        from app.messages.router import router as messages_lab_router
+
+        app.include_router(messages_lab_router)
 
     # Home route — server-rendered landing/dashboard page
     @app.get("/", response_class=HTMLResponse, include_in_schema=False)
@@ -135,8 +142,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         init_db(settings.database_url)
         log.info("mindwall.db_pool_ready")
 
-        # Ensure blob storage directory exists
+        # Ensure storage directories exist
         settings.blob_storage_path.mkdir(parents=True, exist_ok=True)
+        settings.raw_message_store_path.mkdir(parents=True, exist_ok=True)
 
         yield  # Application is running
 
@@ -186,6 +194,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # Templates
     # ------------------------------------------------------------------
     templates = Jinja2Templates(directory=str(_APP_DIR / "templates"))
+    # Register custom filters
+    templates.env.filters["fromjson"] = json.loads
     dependencies.set_templates(templates)
 
     # ------------------------------------------------------------------

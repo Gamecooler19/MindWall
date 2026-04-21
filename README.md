@@ -12,17 +12,17 @@ Mindwall sits between your users and their existing mail provider using local IM
 
 See [architecture.md](architecture.md) for the full system design.
 
-**Current status: Phase 2 — Mailbox Onboarding**
+**Current status: Phase 3 — Message Ingestion**
 
 | Phase | Status | Description |
 |-------|--------|-------------|
 | 1 | ✅ Complete | Project skeleton, config, auth, health endpoints, DB/Redis wiring |
 | 2 | ✅ Complete | Mailbox registration, credential encryption, proxy setup instructions |
-| 3 | Planned | IMAP + SMTP proxy services, message parsing |
+| 3 | ✅ Complete | RFC 5322 parsing, MIME normalization, HTML sanitization, URL extraction, Message Lab UI |
 | 4 | Planned | Analysis engine — deterministic checks + Ollama LLM integration |
-| 5 | Planned | Enforcement, quarantine UI, admin alerting |
+| 5 | Planned | IMAP/SMTP proxies, enforcement, quarantine UI, admin alerting |
 | 6 | Planned | Workers, observability, hardening |
-
+q11
 ---
 
 ## Prerequisites
@@ -266,10 +266,51 @@ mindwall/
 
 ---
 
-## Next Development Step (Phase 3)
+## Message Ingestion (Phase 3)
 
-IMAP + SMTP proxy services:
-1. Build the local IMAP proxy (asyncio TCP server, upstream connection management, UID mapping).
-2. Build the local SMTP proxy (upstream forwarding, alert routing).
-3. Integrate cached verdict-aware mailbox views.
-4. Wire message parsing (RFC 5322, MIME normalization, HTML sanitization).
+Phase 3 adds RFC 5322 email parsing, safe content extraction, and the admin Message Lab.
+
+### What was built
+- **RFC 5322 parser** (`app/messages/parser.py`): Parses raw `.eml` bytes using Python's stdlib `email` module. Extracts envelope fields, plain-text body, HTML body, URLs, and attachments. Never raises — degrades gracefully on malformed input.
+- **HTML sanitizer** (`app/messages/html_safe.py`): Strips scripts, styles, and remote content. Extracts safe plain-text and anchor URLs from HTML parts.
+- **URL extractor** (`app/messages/urls.py`): Extracts and normalizes HTTP/HTTPS URLs from plain-text bodies and HTML anchors. Blocks `javascript:`, `data:`, `vbscript:`, and `file:` schemes.
+- **Raw message store** (`app/messages/storage.py`): Writes raw `.eml` files to disk at `{root}/{sha256[:2]}/{sha256}.eml`. Idempotent. SHA-256 addressed.
+- **Ingestion service** (`app/messages/service.py`): Orchestrates parse → store → persist for a single message.
+- **Message Lab UI** (`/admin/messages/`): Admin-only tool for uploading `.eml` files and inspecting parse results. Lists ingested messages and shows per-message detail (envelope, auth headers, body, URLs, attachments, storage info).
+- **Alembic migration** (`0003_create_messages.py`): Creates `messages`, `message_urls`, `message_attachments` tables.
+
+### Message Lab usage
+
+1. Log in as an admin user.
+2. Navigate to **Admin → Message Lab** (`/admin/messages/`).
+3. Click **Upload .eml** and select a raw email file (max `MESSAGE_LAB_MAX_UPLOAD_MB` MB).
+4. The file is parsed, stored to `RAW_MESSAGE_STORE_PATH`, and its detail page is shown.
+
+### Raw storage layout
+
+```text
+data/
+  raw_messages/
+    ab/
+      ab3f... (sha256 hex).eml
+    cd/
+      cd7e....eml
+```
+
+### New configuration keys
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `RAW_MESSAGE_STORE_PATH` | `./data/raw_messages` | Filesystem path for raw .eml storage |
+| `MESSAGE_LAB_MAX_UPLOAD_MB` | `25` | Maximum .eml upload size in MB |
+| `MESSAGE_LAB_ENABLED` | `true` | Toggle the Message Lab admin UI |
+
+---
+
+## Next Development Step (Phase 4)
+
+Analysis engine:
+1. Deterministic security checks (SPF/DKIM/DMARC, display-name mismatch, suspicious URLs, risky attachments).
+2. Ollama client integration — build structured prompt, parse JSON output.
+3. 12-dimension score mapping.
+4. Policy engine — combine signals into a final verdict.

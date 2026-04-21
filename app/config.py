@@ -61,6 +61,23 @@ class Settings(BaseSettings):
     # -----------------------------------------------------------------------
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.1:8b"
+    # Seconds to wait for an Ollama generate response before aborting.
+    ollama_timeout_seconds: float = 120.0
+
+    # -----------------------------------------------------------------------
+    # Analysis engine
+    # -----------------------------------------------------------------------
+    # Set to False to disable all analysis (message ingestion still works).
+    analysis_enabled: bool = True
+    # Set to False to run deterministic-only analysis (no LLM calls).
+    llm_enabled: bool = True
+    # Prompt version string — bump when the prompt schema changes.
+    analysis_prompt_version: str = "1.0"
+    # Verdict thresholds — risk score upper bound for each tier.
+    verdict_threshold_allow: float = 0.25
+    verdict_threshold_allow_with_banner: float = 0.45
+    verdict_threshold_soft_hold: float = 0.65
+    verdict_threshold_quarantine: float = 0.85
 
     # -----------------------------------------------------------------------
     # Proxy listeners
@@ -84,10 +101,21 @@ class Settings(BaseSettings):
     # -----------------------------------------------------------------------
     blob_storage_path: Path = Path("./data/blobs")
 
+    # Root directory for raw .eml files ingested by the message pipeline.
+    # Uses a two-level SHA-256 prefix layout: <root>/<first2>/<sha256>.eml
+    raw_message_store_path: Path = Path("./data/raw_messages")
+
+    # -----------------------------------------------------------------------
+    # Message Lab (admin-only ingestion testing tool)
+    # -----------------------------------------------------------------------
+    # Maximum size in MB for .eml uploads via the Message Lab UI.
+    message_lab_max_upload_mb: int = 25
+    # Set to False to disable the Message Lab routes entirely.
+    message_lab_enabled: bool = True
+
     # -----------------------------------------------------------------------
     # Feature flags
     # -----------------------------------------------------------------------
-    analysis_enabled: bool = True
     gateway_mode: bool = False
 
     # -----------------------------------------------------------------------

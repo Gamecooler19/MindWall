@@ -18,7 +18,9 @@ Database:
 
 import os
 
+import app.analysis.models
 import app.mailboxes.models
+import app.messages.models
 import app.users.models
 import pytest
 import pytest_asyncio

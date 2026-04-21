@@ -1,0 +1,419 @@
+{% extends "base.html" %}
+
+{% block title %}Message #{{ msg.id }} — Message Lab — Mindwall{% endblock %}
+
+{% block content %}
+
+<div class="space-y-6">
+
+  <!-- Header -->
+  <div class="flex items-start justify-between">
+    <div>
+      <div class="flex items-center gap-2 text-sm text-gray-500 mb-1">
+        <a href="/admin/" class="hover:text-gray-300 transition-colors">Admin</a>
+        <span>/</span>
+        <a href="/admin/messages/" class="hover:text-gray-300 transition-colors">Message Lab</a>
+        <span>/</span>
+        <span class="text-gray-300">#{{ msg.id }}</span>
+      </div>
+      <h1 class="text-2xl font-bold text-white break-all">
+        {{ msg.subject or "(no subject)" }}
+      </h1>
+      <p class="mt-1 text-xs text-gray-500 font-mono">sha256: {{ msg.raw_sha256 }}</p>
+    </div>
+  </div>
+
+  <!-- Two-column layout: metadata left, body right -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+    <!-- Left: metadata -->
+    <div class="lg:col-span-1 space-y-4">
+
+      <!-- Envelope -->
+      <div class="rounded-lg border border-gray-800 bg-gray-900 p-4 space-y-2">
+        <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Envelope</h2>
+        <dl class="space-y-2 text-sm">
+          <div>
+            <dt class="text-gray-500 text-xs">From</dt>
+            <dd class="text-gray-200 font-mono text-xs break-all">
+              {% if msg.from_display_name %}
+                <span class="text-white">{{ msg.from_display_name }}</span>
+                &lt;{{ msg.from_address }}&gt;
+              {% else %}
+                {{ msg.from_address or "—" }}
+              {% endif %}
+            </dd>
+          </div>
+          {% if msg.reply_to_address %}
+          <div>
+            <dt class="text-gray-500 text-xs">Reply-To</dt>
+            <dd class="text-gray-300 font-mono text-xs break-all">{{ msg.reply_to_address }}</dd>
+          </div>
+          {% endif %}
+          {% if to_list %}
+          <div>
+            <dt class="text-gray-500 text-xs">To</dt>
+            <dd class="text-gray-300 font-mono text-xs break-all">{{ to_list | join(', ') }}</dd>
+          </div>
+          {% endif %}
+          {% if cc_list %}
+          <div>
+            <dt class="text-gray-500 text-xs">Cc</dt>
+            <dd class="text-gray-300 font-mono text-xs break-all">{{ cc_list | join(', ') }}</dd>
+          </div>
+          {% endif %}
+          <div>
+            <dt class="text-gray-500 text-xs">Date</dt>
+            <dd class="text-gray-300 text-xs">
+              {% if msg.date %}{{ msg.date.strftime('%Y-%m-%d %H:%M:%S UTC') }}{% else %}—{% endif %}
+            </dd>
+          </div>
+          {% if msg.message_id %}
+          <div>
+            <dt class="text-gray-500 text-xs">Message-ID</dt>
+            <dd class="text-gray-500 font-mono text-xs break-all">{{ msg.message_id }}</dd>
+          </div>
+          {% endif %}
+        </dl>
+      </div>
+
+      <!-- Authentication signals -->
+      <div class="rounded-lg border border-gray-800 bg-gray-900 p-4">
+        <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Auth Signals</h2>
+        <dl class="space-y-2 text-xs">
+          <div class="flex items-center justify-between">
+            <dt class="text-gray-500">DKIM-Signature</dt>
+            <dd>
+              {% if msg.header_dkim_signature_present %}
+                <span class="text-green-400">present</span>
+              {% else %}
+                <span class="text-gray-600">absent</span>
+              {% endif %}
+            </dd>
+          </div>
+          {% if msg.header_received_spf %}
+          <div>
+            <dt class="text-gray-500 mb-1">Received-SPF</dt>
+            <dd class="text-gray-400 font-mono text-xs break-all">{{ msg.header_received_spf[:120] }}</dd>
+          </div>
+          {% endif %}
+          {% if msg.header_authentication_results %}
+          <div>
+            <dt class="text-gray-500 mb-1">Authentication-Results</dt>
+            <dd class="text-gray-400 font-mono text-xs break-all">{{ msg.header_authentication_results[:200] }}</dd>
+          </div>
+          {% endif %}
+          {% if msg.header_x_mailer %}
+          <div>
+            <dt class="text-gray-500">X-Mailer</dt>
+            <dd class="text-gray-400 font-mono text-xs break-all">{{ msg.header_x_mailer }}</dd>
+          </div>
+          {% endif %}
+        </dl>
+      </div>
+
+      <!-- Storage -->
+      <div class="rounded-lg border border-gray-800 bg-gray-900 p-4">
+        <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Storage</h2>
+        <dl class="space-y-1 text-xs">
+          <div>
+            <dt class="text-gray-500">Size</dt>
+            <dd class="text-gray-300">{{ msg.raw_size_bytes | filesizeformat if msg.raw_size_bytes else "—" }}</dd>
+          </div>
+          <div>
+            <dt class="text-gray-500">Path</dt>
+            <dd class="text-gray-500 font-mono break-all">{{ msg.raw_storage_path or "—" }}</dd>
+          </div>
+          <div>
+            <dt class="text-gray-500">Source</dt>
+            <dd class="text-gray-400">{{ msg.ingestion_source }}</dd>
+          </div>
+          <div>
+            <dt class="text-gray-500">Ingested</dt>
+            <dd class="text-gray-400">{{ msg.created_at.strftime('%Y-%m-%d %H:%M UTC') }}</dd>
+          </div>
+        </dl>
+      </div>
+
+    </div>
+
+    <!-- Right: body + URLs + attachments -->
+    <div class="lg:col-span-2 space-y-4">
+
+      <!-- Plain text body -->
+      {% if msg.text_plain %}
+      <div class="rounded-lg border border-gray-800 bg-gray-900 p-4">
+        <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+          Plain Text Body
+        </h2>
+        <pre class="text-xs text-gray-300 whitespace-pre-wrap break-all font-mono max-h-64 overflow-y-auto">{{ msg.text_plain }}</pre>
+      </div>
+      {% endif %}
+
+      <!-- Safe HTML text -->
+      {% if msg.text_html_safe %}
+      <div class="rounded-lg border border-gray-800 bg-gray-900 p-4">
+        <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+          Safe Extracted HTML Text
+        </h2>
+        <p class="text-xs text-gray-600 mb-3">Scripts, styles, and remote content removed.</p>
+        <pre class="text-xs text-gray-300 whitespace-pre-wrap break-all font-mono max-h-64 overflow-y-auto">{{ msg.text_html_safe }}</pre>
+      </div>
+      {% endif %}
+
+      {% if not msg.text_plain and not msg.text_html_safe %}
+      <div class="rounded-lg border border-gray-800 bg-gray-900 p-4">
+        <p class="text-sm text-gray-600">No text body could be extracted from this message.</p>
+      </div>
+      {% endif %}
+
+      <!-- URLs -->
+      <div class="rounded-lg border border-gray-800 bg-gray-900 p-4">
+        <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+          Extracted URLs
+          <span class="ml-2 text-gray-600 font-normal normal-case">{{ msg.num_urls }} total</span>
+        </h2>
+        {% if msg.urls %}
+        <div class="space-y-2">
+          {% for url in msg.urls %}
+          <div class="bg-gray-950 rounded p-2.5 text-xs">
+            <div class="flex items-start justify-between gap-2">
+              <span class="font-mono text-amber-400 break-all">{{ url.host }}</span>
+              <span class="shrink-0 rounded px-1.5 py-0.5 text-xs
+                {% if url.source == 'html' %}bg-blue-900 text-blue-300{% else %}bg-gray-800 text-gray-400{% endif %}">
+                {{ url.source }}
+              </span>
+            </div>
+            <p class="font-mono text-gray-500 break-all mt-1">{{ url.raw_url }}</p>
+            {% if url.link_text %}
+            <p class="text-gray-600 mt-1">Link text: <span class="text-gray-400">{{ url.link_text }}</span></p>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-xs text-gray-600">No URLs extracted.</p>
+        {% endif %}
+      </div>
+
+      <!-- Attachments -->
+      <div class="rounded-lg border border-gray-800 bg-gray-900 p-4">
+        <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+          Attachments
+          <span class="ml-2 text-gray-600 font-normal normal-case">{{ msg.num_attachments }} total</span>
+        </h2>
+        {% if msg.attachments %}
+        <div class="space-y-2">
+          {% for att in msg.attachments %}
+          <div class="bg-gray-950 rounded p-2.5 text-xs">
+            <div class="flex items-start justify-between gap-2">
+              <span class="font-medium text-gray-200">{{ att.filename or "(unnamed)" }}</span>
+              {% if att.is_inline %}
+              <span class="shrink-0 rounded px-1.5 py-0.5 text-xs bg-gray-800 text-gray-500">inline</span>
+              {% endif %}
+            </div>
+            <p class="text-gray-500 mt-0.5">{{ att.content_type }} — {{ att.size_bytes }} bytes</p>
+            {% if att.sha256 %}
+            <p class="font-mono text-gray-700 mt-0.5 break-all">{{ att.sha256 }}</p>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-xs text-gray-600">No attachments detected.</p>
+        {% endif %}
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- Analysis Results                                                  -->
+  <!-- ================================================================ -->
+  <div class="rounded-lg border border-gray-700 bg-gray-900 p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-sm font-semibold text-gray-300 uppercase tracking-wider">Security Analysis</h2>
+      {% if analysis_enabled %}
+      <form method="post" action="/admin/messages/{{ msg.id }}/analyze">
+        <button type="submit"
+          class="rounded px-3 py-1.5 text-xs font-medium bg-indigo-700 hover:bg-indigo-600 text-white transition-colors">
+          {% if analysis %}Re-analyse{% else %}Analyse{% endif %}
+        </button>
+      </form>
+      {% endif %}
+    </div>
+
+    {% if not analysis %}
+      <p class="text-sm text-gray-600">
+        No analysis has been run for this message yet.
+        {% if analysis_enabled %}
+          Click <strong class="text-gray-400">Analyse</strong> above to run the full security pipeline.
+        {% else %}
+          Analysis is currently disabled.
+        {% endif %}
+      </p>
+    {% else %}
+
+      <!-- Top summary row: verdict, risk score, confidence, degraded banner -->
+      <div class="flex flex-wrap items-center gap-4 mb-6">
+
+        <!-- Verdict badge -->
+        <div>
+          <span class="text-xs text-gray-500 block mb-0.5">Verdict</span>
+          {% set v = analysis.verdict %}
+          <span class="rounded px-2.5 py-1 text-xs font-bold uppercase tracking-wide
+            {% if v == 'allow' %}bg-green-900 text-green-300
+            {% elif v == 'allow_with_banner' %}bg-blue-900 text-blue-300
+            {% elif v == 'soft_hold' %}bg-yellow-900 text-yellow-300
+            {% elif v == 'quarantine' %}bg-orange-900 text-orange-300
+            {% elif v in ('reject', 'escalate_to_admin') %}bg-red-900 text-red-300
+            {% else %}bg-gray-800 text-gray-400{% endif %}">
+            {{ v | replace('_', ' ') }}
+          </span>
+        </div>
+
+        <!-- Overall risk -->
+        <div>
+          <span class="text-xs text-gray-500 block mb-0.5">Overall Risk</span>
+          <span class="text-lg font-bold
+            {% if analysis.overall_risk_score <= 0.25 %}text-green-400
+            {% elif analysis.overall_risk_score <= 0.45 %}text-blue-400
+            {% elif analysis.overall_risk_score <= 0.65 %}text-yellow-400
+            {% elif analysis.overall_risk_score <= 0.85 %}text-orange-400
+            {% else %}text-red-400{% endif %}">
+            {{ "%.0f" | format(analysis.overall_risk_score * 100) }}<span class="text-sm text-gray-500">%</span>
+          </span>
+        </div>
+
+        <!-- Confidence -->
+        {% if analysis.confidence is not none %}
+        <div>
+          <span class="text-xs text-gray-500 block mb-0.5">Confidence</span>
+          <span class="text-sm font-semibold text-gray-300">
+            {{ "%.0f" | format(analysis.confidence * 100) }}%
+          </span>
+        </div>
+        {% endif %}
+
+        <!-- Degraded warning -->
+        {% if analysis.is_degraded %}
+        <div class="rounded px-3 py-1.5 bg-yellow-950 border border-yellow-800 text-yellow-400 text-xs flex items-center gap-1.5">
+          <span>⚠</span>
+          <span>Degraded mode — deterministic checks only, LLM unavailable</span>
+        </div>
+        {% endif %}
+
+        <!-- Model info -->
+        {% if analysis.model_name %}
+        <div class="ml-auto text-right">
+          <span class="text-xs text-gray-600">Model</span>
+          <p class="text-xs text-gray-500 font-mono">{{ analysis.model_name }}</p>
+        </div>
+        {% endif %}
+
+      </div>
+
+      <!-- Rationale -->
+      {% if analysis.rationale %}
+      <div class="mb-6">
+        <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Rationale</h3>
+        <p class="text-sm text-gray-300 leading-relaxed">{{ analysis.rationale }}</p>
+      </div>
+      {% endif %}
+
+      <!-- Dimension scores grid -->
+      {% if dim_scores %}
+      <div class="mb-6">
+        <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Manipulation Dimensions</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+          {% for ds in dim_scores %}
+          <div class="bg-gray-950 rounded p-3">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-xs text-gray-400">{{ ds.label }}</span>
+              <span class="text-xs font-mono font-semibold
+                {% if ds.score >= 0.7 %}text-red-400
+                {% elif ds.score >= 0.45 %}text-yellow-400
+                {% elif ds.score >= 0.2 %}text-blue-400
+                {% else %}text-gray-600{% endif %}">
+                {{ "%.0f" | format(ds.score * 100) }}%
+              </span>
+            </div>
+            <!-- Progress bar -->
+            <div class="w-full bg-gray-800 rounded-full h-1.5">
+              <div class="h-1.5 rounded-full
+                {% if ds.score >= 0.7 %}bg-red-500
+                {% elif ds.score >= 0.45 %}bg-yellow-500
+                {% elif ds.score >= 0.2 %}bg-blue-500
+                {% else %}bg-gray-700{% endif %}"
+                style="width: {{ (ds.score * 100) | int }}%"></div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Two-column: deterministic findings + evidence -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+        <!-- Deterministic findings -->
+        <div>
+          <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Deterministic Findings</h3>
+          {% set findings = analysis.deterministic_findings_json | fromjson if analysis.deterministic_findings_json else [] %}
+          {% if findings %}
+          <div class="space-y-2">
+            {% for f in findings %}
+            <div class="bg-gray-950 rounded p-2.5 text-xs">
+              <div class="flex items-center justify-between gap-2 mb-0.5">
+                <span class="font-medium text-gray-200">{{ f.rule }}</span>
+                <span class="shrink-0 font-mono text-xs
+                  {% if f.severity >= 0.7 %}text-red-400
+                  {% elif f.severity >= 0.4 %}text-yellow-400
+                  {% else %}text-blue-400{% endif %}">
+                  {{ "%.0f" | format(f.severity * 100) }}%
+                </span>
+              </div>
+              <p class="text-gray-500">{{ f.description }}</p>
+              {% if f.evidence %}
+              <p class="text-gray-600 mt-1 font-mono break-all">{{ f.evidence }}</p>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p class="text-xs text-gray-600">No deterministic findings.</p>
+          {% endif %}
+        </div>
+
+        <!-- Evidence list -->
+        <div>
+          <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Evidence</h3>
+          {% set evidence = analysis.evidence_json | fromjson if analysis.evidence_json else [] %}
+          {% if evidence %}
+          <ul class="space-y-1 text-xs text-gray-400 list-disc list-inside">
+            {% for item in evidence %}
+            <li class="leading-relaxed">{{ item }}</li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="text-xs text-gray-600">No evidence collected.</p>
+          {% endif %}
+        </div>
+
+      </div>
+
+      <!-- Footer: analysis metadata -->
+      <div class="mt-4 pt-4 border-t border-gray-800 flex flex-wrap gap-4 text-xs text-gray-600">
+        <span>Run ID: #{{ analysis.id }}</span>
+        <span>Analysis v{{ analysis.analysis_version }}</span>
+        {% if analysis.prompt_version %}<span>Prompt v{{ analysis.prompt_version }}</span>{% endif %}
+        <span>{{ analysis.created_at.strftime('%Y-%m-%d %H:%M UTC') }}</span>
+        <span>Status: {{ analysis.status }}</span>
+      </div>
+
+    {% endif %}
+  </div>
+
+</div>
+
+{% endblock %}
