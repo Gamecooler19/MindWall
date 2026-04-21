@@ -1,55 +1,158 @@
 # Mindwall
 
-**Privacy-first, self-hosted email security platform.**
+**Self-hosted email security platform. Privacy first. No cloud dependencies.**
 
-Mindwall sits between your users and their existing mail provider using local IMAP and SMTP proxies. Incoming messages are inspected, scored across 12 psychological manipulation dimensions, and either delivered, flagged, or quarantined — all without sending any message data outside your deployment boundary.
+Mindwall is a local IMAP/SMTP proxy and analysis engine that sits between your mail client and your upstream mail provider. Every incoming message is inspected, scored across **12 psychological manipulation dimensions**, and either delivered, flagged, or quarantined — without any message content leaving your deployment boundary.
 
-> Inference runs 100% on-premises via [Ollama](https://ollama.com) + Llama 3.1 8B.
+> **Inference runs 100% on-premises** via [Ollama](https://ollama.com) + Llama 3.1 8B.  
+> No cloud APIs. No SaaS dependencies. No telemetry.
 
----
-
-## Architecture
-
-See [architecture.md](architecture.md) for the full system design.
-
-**Current status: Phase 10 — SMTP Proxy MVP**
-
-| Phase | Status | Description |
-|-------|--------|-------------|
-| 1 | ✅ Complete | Project skeleton, config, auth, health endpoints, DB/Redis wiring |
-| 2 | ✅ Complete | Mailbox registration, credential encryption, proxy setup instructions |
-| 3 | ✅ Complete | RFC 5322 parsing, MIME normalization, HTML sanitization, URL extraction, Message Lab UI |
-| 4 | ✅ Complete | Analysis engine — deterministic checks + Ollama LLM integration |
-| 5 | ✅ Complete | Quarantine storage, review UI, release/delete, audit trail |
-| 6 | ✅ Complete | IMAP sync worker, background ingestion from upstream mailboxes |
-| 7 | ✅ Complete | Docker stack, admin UI, policy/alerts/model-health/audit dashboards |
-| 8 | ✅ Complete | Policy Editor, Alerts & Incidents, Audit Log, Mailbox Profiles admin pages |
-| 9 | ✅ Complete | Read-only IMAP proxy MVP — full RFC 3501 subset for local clients |
-| 10 | ✅ Complete | SMTP submission proxy — AUTH PLAIN/LOGIN, capture/relay modes, admin review UI |
-| 11 | Planned | Outbound inspection, hardening, STARTTLS, gateway mode |
----
-
-## Prerequisites
-
-| Dependency | Version | Notes |
-|-----------|---------|-------|
-| Python | 3.11+ | Required (3.12 also supported) |
-| PostgreSQL | 15+ | Primary data store |
-| Redis | 7+ | Caching, queues, sessions |
-| Ollama | Latest | Local LLM inference (Phase 4+) |
+**Source-available. Non-commercial use only.** See [LICENSE](LICENSE).
 
 ---
 
-## Local Setup
+## Overview
 
-### 1. Clone the repository
+| | |
+|---|---|
+| **Language** | Python 3.11+ |
+| **Framework** | FastAPI + Jinja2 |
+| **Database** | PostgreSQL 16 |
+| **Cache / queues** | Redis 7 |
+| **Inference** | Ollama (local, Llama 3.1 8B) |
+| **Status** | Beta — actively developed |
+| **License** | PolyForm Noncommercial 1.0.0 |
+
+---
+
+## What it does
+
+1. **Proxies your mail.** Users configure their mail client to connect to Mindwall's local IMAP (port 1993) and SMTP (port 1587) proxies instead of their upstream mail server.
+2. **Inspects every message.** Incoming mail is pulled from upstream via background sync, parsed (RFC 5322), and run through both deterministic security checks and a local LLM.
+3. **Scores 12 manipulation dimensions.** Each message receives per-dimension scores covering authority pressure, urgency, fear, impersonation, credential/payment capture, and eight others.
+4. **Enforces a policy verdict.** The combined risk score determines whether the message is `allow`, `allow_with_banner`, `soft_hold`, `quarantine`, or `escalate_to_admin`.
+5. **Filters your inbox.** The IMAP proxy presents only cleared messages in `INBOX`; quarantined messages appear in `Mindwall/Quarantine`.
+6. **Gives admins full visibility.** A web-based admin UI covers quarantine review, alerts, audit log, policy editor, sync status, model health, and outbound message inspection.
+
+### Key design constraints
+
+- **Zero external data egress.** Message bodies, headers, attachments, and LLM prompts never leave the server.
+- **No cloud APIs.** Inference is served by a locally running Ollama instance.
+- **Explainable verdicts.** Every quarantine decision includes the technical signals, per-dimension scores, model reasoning, and a complete audit trail.
+- **Fail-safe degradation.** If Ollama is unreachable, the system falls back to deterministic-only analysis and marks the verdict as degraded. The request path does not crash.
+
+---
+
+## Implementation status
+
+| Phase | Description | Status |
+|-------|-------------|--------|
+| 1 | Foundation: config, auth, RBAC, health endpoints, DB/Redis wiring | ✅ Complete |
+| 2 | Mailbox onboarding: credential encryption, proxy setup UI | ✅ Complete |
+| 3 | Message ingestion: RFC 5322 parsing, HTML sanitization, URL extraction, Message Lab | ✅ Complete |
+| 4 | Analysis engine: deterministic checks + Ollama LLM + 12-dimension scoring | ✅ Complete |
+| 5 | Enforcement: quarantine storage, review UI, release/delete, audit trail | ✅ Complete |
+| 6 | IMAP sync: background pull from upstream mailboxes, mailbox virtualization | ✅ Complete |
+| 7 | Admin surfaces: policy editor, alerts, audit log, model health, mailbox admin | ✅ Complete |
+| 8 | Docker stack: full Compose setup, entrypoint, migration automation | ✅ Complete |
+| 9 | IMAP proxy MVP: RFC 3501 subset, virtual folders, credential auth | ✅ Complete |
+| 10 | SMTP proxy MVP: AUTH PLAIN/LOGIN, capture/relay delivery, outbound admin UI | ✅ Complete |
+| 11 | Outbound inspection, STARTTLS, gateway mode, hardening | Planned |
+
+---
+
+## Quick start (Docker)
+
+### Prerequisites
+
+- Docker Engine 24+ and Docker Compose v2
+- 4 GB RAM minimum (8 GB recommended when Ollama is enabled)
+- Ollama installed separately if you want LLM analysis (see [docs/installation/docker.md](docs/installation/docker.md))
+
+### 1. Clone and configure
 
 ```bash
 git clone <repo-url>
 cd mindwall
+cp .env.example .env.docker
 ```
 
-### 2. Create a virtual environment
+Edit `.env.docker` and set the three required values:
+
+```bash
+# Generate a session signing key (min 32 chars)
+python -c "import secrets; print(secrets.token_hex(32))"
+
+# Generate a Fernet encryption key for credential storage
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+Minimum `.env.docker` values:
+
+```env
+SECRET_KEY=<output from first command>
+ENCRYPTION_KEY=<output from second command>
+MINDWALL_ADMIN_EMAIL=admin@example.com
+MINDWALL_ADMIN_PASSWORD=change-me-immediately
+```
+
+### 2. Start the stack
+
+```bash
+docker compose --env-file .env.docker up -d
+```
+
+This starts five services:
+
+| Container | Purpose | Host port |
+|-----------|---------|-----------|
+| `mindwall_app` | FastAPI web application + admin UI | 8000 |
+| `mindwall_db` | PostgreSQL 16 | — (internal) |
+| `mindwall_redis` | Redis 7 | — (internal) |
+| `mindwall_imap_proxy` | IMAP proxy server | 1143 |
+| `mindwall_smtp_proxy` | SMTP submission proxy | 1587 |
+
+### 3. Open the admin UI
+
+```
+http://localhost:8000
+```
+
+Log in with the email and password you set in `.env.docker`.
+
+### Useful Docker commands
+
+```bash
+# View running services
+docker compose --env-file .env.docker ps
+
+# Follow application logs
+docker compose --env-file .env.docker logs -f app
+
+# Run database migrations manually
+docker exec mindwall_app python -m alembic upgrade head
+
+# Check current migration revision
+docker exec mindwall_app python -m alembic current
+
+# Full reset (destroys all data)
+docker compose --env-file .env.docker down -v
+```
+
+---
+
+## Quick start (local development)
+
+### Prerequisites
+
+| Dependency | Version |
+|-----------|---------|
+| Python | 3.11+ |
+| PostgreSQL | 15+ |
+| Redis | 7+ |
+| Ollama | Latest (optional — required for LLM analysis) |
+
+### 1. Set up Python environment
 
 ```bash
 python -m venv .venv
@@ -57,578 +160,453 @@ python -m venv .venv
 .venv\Scripts\activate
 # macOS / Linux
 source .venv/bin/activate
-```
 
-### 3. Install dependencies
-
-```bash
 pip install -e ".[dev]"
 ```
 
-### 4. Configure environment
+### 2. Configure environment
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` and fill in the required values:
-
-```bash
-# Generate a secret key
-python -c "import secrets; print(secrets.token_hex(32))"
-
-# Generate a Fernet encryption key
-python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-```
-
-Minimum required `.env` values:
+Minimum `.env` values (all others have safe defaults):
 
 ```env
-SECRET_KEY=<output from above>
-ENCRYPTION_KEY=<output from above>
+SECRET_KEY=<at-least-32-char-random-string>
+ENCRYPTION_KEY=<fernet-key>
 DATABASE_URL=postgresql+asyncpg://mindwall:mindwall@localhost:5432/mindwall
 REDIS_URL=redis://localhost:6379/0
 ```
 
-### 5. Start PostgreSQL and Redis
-
-Using Docker Compose (simplest):
+### 3. Start dependencies
 
 ```bash
-docker run -d --name mindwall-postgres \
+# PostgreSQL
+docker run -d --name mindwall-pg \
   -e POSTGRES_USER=mindwall \
   -e POSTGRES_PASSWORD=mindwall \
   -e POSTGRES_DB=mindwall \
-  -p 5432:5432 postgres:15
+  -p 5432:5432 postgres:16-alpine
 
+# Redis
 docker run -d --name mindwall-redis \
-  -p 6379:6379 redis:7
+  -p 6379:6379 redis:7-alpine
 ```
 
-### 6. Run database migrations
+### 4. Run migrations and seed admin
 
 ```bash
 alembic upgrade head
+python scripts/create_admin.py
 ```
 
-### 7. Start the application
+### 5. Start the application
 
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Open [http://localhost:8000](http://localhost:8000) in your browser.
+### 6. Start the proxies (optional)
 
-> **Note:** In Phase 1, no users exist in the database. Use `scripts/create_admin.py` (coming soon) or insert directly to bootstrap the first admin account.
+```bash
+# IMAP proxy (separate terminal)
+python workers/imap_proxy.py
 
----
-
-## Mailbox Registration (Phase 2)
-
-Users register their upstream IMAP/SMTP credentials through the web UI at `/mailboxes/new`.
-
-1. Fill in your upstream IMAP server details (host, port, username, password, security mode).
-2. Fill in your upstream SMTP server details.
-3. Mindwall validates connectivity, encrypts your credentials with a Fernet key, and generates unique **Mindwall proxy credentials** for your mail client.
-4. On the detail page you are shown your proxy password **exactly once** — copy and save it before navigating away.
-5. Configure your mail client to connect to `IMAP_PROXY_DISPLAY_HOST:IMAP_PROXY_PORT` and `SMTP_PROXY_DISPLAY_HOST:SMTP_PROXY_PORT` using the Mindwall proxy credentials.
-
-### How credential security works
-
-- Upstream passwords are encrypted at rest with Fernet (AES-128-CBC + HMAC-SHA256) using the `ENCRYPTION_KEY`.
-- Proxy passwords are stored only as bcrypt hashes — they cannot be recovered. If you lose yours, use the "Reset proxy password" button.
-- No credential is ever logged or exposed in API responses.
+# SMTP submission proxy (separate terminal)
+python workers/smtp_proxy.py
+```
 
 ---
 
-## IMAP Proxy (Phase 9)
+## Mailbox onboarding
 
-Mindwall ships a read-only IMAP proxy server that your mail client connects to instead of your upstream mailbox. It authenticates with Mindwall proxy credentials and presents a filtered view of your mailbox backed by Mindwall's locally indexed messages.
+Users register their upstream mailbox at `/mailboxes/new`.
 
-### Virtual folders exposed
+1. Enter upstream IMAP server details (host, port, username, password, security mode).
+2. Enter upstream SMTP server details.
+3. Mindwall validates connectivity, encrypts your credentials with Fernet (AES-128-CBC + HMAC-SHA256), and generates unique **Mindwall proxy credentials**.
+4. The proxy password is shown **once** on the detail page — copy and save it before navigating away. It cannot be recovered; use **Reset proxy password** if lost.
+5. Configure your mail client:
+
+| Setting | Value |
+|---------|-------|
+| Incoming server | `IMAP_PROXY_DISPLAY_HOST` (default: `127.0.0.1`) |
+| Incoming port | `IMAP_PROXY_PORT` (default: `1993`; Docker dev: `1143`) |
+| Outgoing server | `SMTP_PROXY_DISPLAY_HOST` (default: `127.0.0.1`) |
+| Outgoing port | `SMTP_PROXY_PORT` (default: `1587`) |
+| Username | Your Mindwall proxy username (shown on the mailbox detail page) |
+| Password | Your Mindwall proxy password (shown once at registration) |
+| Security | None (use a VPN or local-only network; STARTTLS is planned) |
+
+See [docs/mailbox-onboarding.md](docs/mailbox-onboarding.md) for the full workflow.
+
+---
+
+## IMAP proxy
+
+Mindwall's IMAP proxy authenticates with Mindwall proxy credentials and presents a filtered, read-only view of the local message store.
+
+### Virtual folders
 
 | Folder | Contents |
 |--------|----------|
-| `INBOX` | Messages with `VISIBLE` status (passed analysis) |
+| `INBOX` | Messages with `VISIBLE` status (cleared by analysis) |
 | `Mindwall/Quarantine` | Messages with `QUARANTINED` or `HIDDEN` status |
 
 ### Supported commands
 
 `CAPABILITY`, `NOOP`, `LOGOUT`, `LOGIN`, `LIST`, `SELECT`, `EXAMINE`, `STATUS`, `UID SEARCH`, `UID FETCH`, `FETCH`, `SEARCH`, `CLOSE`
 
-### Mutation commands are rejected
+### Mutation commands
 
-`STORE`, `COPY`, `APPEND`, `EXPUNGE`, `CREATE`, `DELETE`, `RENAME`, and similar write operations return `NO [CANNOT]`. This proxy is read-only in Phase 9.
-
-### Running the proxy (local dev)
-
-```bash
-# Start separately from the FastAPI app:
-python workers/imap_proxy.py
-
-# Override port for local dev (default is 1993):
-IMAP_PROXY_PORT=1143 python workers/imap_proxy.py
-```
-
-### Running with Docker (Phase 9 stack)
-
-```bash
-docker compose up -d
-# IMAP proxy listens on host port 1143 (mapped from container port 1143)
-```
-
-### Manual verification with Python imaplib
-
-```python
-import imaplib
-
-M = imaplib.IMAP4("localhost", 1143)
-print(M.capability())
-
-# Log in with your Mindwall proxy credentials (visible on the mailbox detail page)
-M.login("mw_youruser_abc123", "your-proxy-password")
-
-typ, folders = M.list()
-for f in folders:
-    print(f)
-
-M.select("INBOX")
-typ, data = M.uid("search", "ALL")
-print("UIDs:", data)
-
-# Fetch the first message if any
-uids = data[0].split()
-if uids:
-    typ, msg = M.uid("fetch", uids[0], "(RFC822.SIZE FLAGS)")
-    print(msg)
-
-M.logout()
-```
+Write operations (`STORE`, `COPY`, `APPEND`, `EXPUNGE`, `CREATE`, `DELETE`, `RENAME`, etc.) return `NO [CANNOT]`. This proxy is **read-only** in the current release.
 
 ### Configuration
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `IMAP_PROXY_HOST` | `0.0.0.0` | Bind address for the proxy listener |
-| `IMAP_PROXY_PORT` | `1993` | TCP port (use `1143` for Docker dev) |
+| `IMAP_PROXY_HOST` | `0.0.0.0` | Bind address |
+| `IMAP_PROXY_PORT` | `1993` | TCP listen port |
 | `IMAP_PROXY_DISPLAY_HOST` | `127.0.0.1` | Host shown in proxy setup instructions |
 
+See [docs/imap-proxy.md](docs/imap-proxy.md) for full protocol details and verification steps.
+
 ---
 
-## SMTP Proxy (Phase 10)
+## SMTP proxy
 
-Mindwall ships an SMTP submission proxy that your mail client connects to instead of your upstream SMTP server.  Outbound mail is inspected, stored, and (optionally) relayed to your real upstream server.
+Mindwall's SMTP proxy authenticates outbound mail submissions with Mindwall proxy credentials and either captures or relays the message.
 
-### How it works
+### Delivery modes
 
-1. Configure your mail client to use Mindwall as the outgoing SMTP server (port `1587`).
-2. Authenticate with your Mindwall **proxy credentials** (the same username/password shown on the mailbox detail page).
-3. Submit mail as normal.  Mindwall captures the raw message, records metadata (sender, recipients, subject, SHA-256, size), and either:
-   - **Capture mode** (default): stores the message locally for admin review.  Nothing leaves the server.
-   - **Relay mode**: forwards the message to your real upstream SMTP server using the stored upstream credentials.
+| Mode | Behaviour |
+|------|-----------|
+| `capture` | Stores the raw `.eml` and metadata locally; nothing leaves the server |
+| `relay` | Forwards the message to the upstream SMTP server using stored encrypted credentials |
 
-### Supported SMTP commands
+### Supported commands
 
-| Command | Description |
-|---------|-------------|
-| `EHLO` / `HELO` | Session initiation — always accepted |
-| `AUTH PLAIN` | Mindwall proxy credential authentication |
-| `AUTH LOGIN` | Two-step base64 challenge authentication |
-| `MAIL FROM` | Set envelope sender (requires auth first) |
-| `RCPT TO` | Add envelope recipients |
-| `DATA` | Submit message body |
-| `RSET` | Reset envelope |
-| `NOOP` | Keep-alive |
-| `QUIT` | Close connection |
+`EHLO`, `HELO`, `AUTH PLAIN`, `AUTH LOGIN`, `MAIL FROM`, `RCPT TO`, `DATA`, `RSET`, `NOOP`, `QUIT`
 
-Unsupported commands (`VRFY`, `EXPN`, `TURN`, etc.) return `502 5.5.1 Command not implemented`.
-
-STARTTLS is deferred to a later phase.  Use a local-only or VPN-protected network for the proxy endpoint.
-
-### Running the proxy (local dev)
-
-```bash
-# Start separately from the FastAPI app:
-python workers/smtp_proxy.py
-
-# Override settings:
-SMTP_PROXY_PORT=1587 SMTP_DELIVERY_MODE=capture python workers/smtp_proxy.py
-```
-
-### Running with Docker
-
-```bash
-docker compose --env-file .env.docker up -d smtp_proxy
-# SMTP proxy listens on host port 1587 (mapped from container port 1587)
-```
-
-### Admin review
-
-Captured outbound messages are visible at **`/admin/outbound/`**.
-
-Each entry shows:
-- MAIL FROM address
-- RCPT TO list
-- Subject
-- Delivery mode and status
-- Raw size and SHA-256
-- On-disk storage path
-
-### Manual verification
-
-```bash
-python scripts/verify_smtp_proxy.py
-# Runs 22 assertions across greeting, auth, mail transaction, enforcement, and DB.
-```
-
-Or test with `smtplib`:
-
-```python
-import smtplib
-
-with smtplib.SMTP("localhost", 1587) as smtp:
-    smtp.ehlo("test.example.com")
-    smtp.login("mw_youruser_abc123", "your-proxy-password")
-    smtp.sendmail(
-        "from@example.com",
-        ["to@example.com"],
-        "Subject: Test\r\n\r\nHello",
-    )
-```
+Unsupported commands return `502 5.5.1 Command not implemented`. STARTTLS is deferred.
 
 ### Configuration
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SMTP_PROXY_HOST` | `0.0.0.0` | Bind address for the proxy listener |
-| `SMTP_PROXY_PORT` | `1587` | TCP port |
+| `SMTP_PROXY_HOST` | `0.0.0.0` | Bind address |
+| `SMTP_PROXY_PORT` | `1587` | TCP listen port |
 | `SMTP_PROXY_DISPLAY_HOST` | `127.0.0.1` | Host shown in proxy setup instructions |
-| `SMTP_DELIVERY_MODE` | `capture` | `capture` (store locally) or `relay` (forward upstream) |
-| `SMTP_RELAY_TIMEOUT_SECONDS` | `30` | Upstream SMTP connection timeout |
+| `SMTP_DELIVERY_MODE` | `capture` | `capture` or `relay` |
+| `SMTP_RELAY_TIMEOUT_SECONDS` | `30` | Upstream relay connection timeout |
 | `SMTP_MAX_MESSAGE_BYTES` | `26214400` | Maximum message size (25 MB) |
-| `OUTBOUND_MESSAGE_STORE_PATH` | `./data/outbound_messages` | Where captured .eml files are stored |
+| `OUTBOUND_MESSAGE_STORE_PATH` | `./data/outbound_messages` | Captured `.eml` storage |
+
+See [docs/smtp-proxy.md](docs/smtp-proxy.md) for full details.
 
 ---
 
-## Running Tests
+## Configuration reference
+
+All settings are environment-variable driven. The full list is in [docs/configuration.md](docs/configuration.md) and [`.env.example`](.env.example).
+
+### Required settings
+
+| Variable | Description |
+|----------|-------------|
+| `SECRET_KEY` | Session cookie signing key (minimum 32 characters) |
+| `ENCRYPTION_KEY` | Fernet key for encrypting upstream credentials at rest |
+
+### Key optional settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DATABASE_URL` | `postgresql+asyncpg://mindwall:mindwall@localhost:5432/mindwall` | Async PostgreSQL connection URL |
+| `REDIS_URL` | `redis://localhost:6379/0` | Redis connection URL |
+| `DEBUG` | `false` | Enable debug logs; exposes `/api/docs` |
+| `OLLAMA_BASE_URL` | `http://localhost:11434` | Local Ollama endpoint |
+| `OLLAMA_MODEL` | `llama3.1:8b` | Model to use for analysis |
+| `LLM_ENABLED` | `true` | Set to `false` for deterministic-only analysis |
+| `ANALYSIS_ENABLED` | `true` | Set to `false` to disable all analysis |
+| `GATEWAY_MODE` | `false` | Enable pre-delivery inline gateway mode |
+| `BLOB_STORAGE_PATH` | `./data/blobs` | Encrypted blob storage root |
+| `RAW_MESSAGE_STORE_PATH` | `./data/raw_messages` | Raw `.eml` storage root |
+
+---
+
+## Admin UI
+
+All admin pages require the `admin` role. The UI is server-rendered (Jinja2 + Tailwind CDN).
+
+| Page | URL | Description |
+|------|-----|-------------|
+| Dashboard | `/admin/` | Pending quarantine count, open alerts, mailbox count |
+| Quarantine inbox | `/admin/quarantine/` | Filterable quarantine review queue |
+| Quarantine detail | `/admin/quarantine/{id}` | Full message detail, scores, evidence, audit timeline |
+| Alerts | `/admin/alerts/` | Open/acknowledged/resolved alerts |
+| Alert detail | `/admin/alerts/{id}` | Alert triage: acknowledge, resolve, add note |
+| Audit log | `/admin/audit/` | Paginated append-only audit event log |
+| Policy editor | `/admin/policy/` | Edit runtime policy thresholds and flags |
+| Model health | `/admin/health/model` | Ollama connectivity and model availability |
+| Mailboxes | `/admin/mailboxes/` | All registered mailbox profiles |
+| Mailbox sync | `/admin/mailboxes/{id}/sync` | Sync status, trigger, per-folder checkpoints |
+| Mailbox inbox | `/admin/mailboxes/{id}/inbox` | Mindwall-visible messages for a mailbox |
+| Mailbox quarantine | `/admin/mailboxes/{id}/quarantine` | Quarantined messages for a mailbox |
+| Message Lab | `/admin/messages/` | Upload and inspect `.eml` files (enabled by default) |
+| Outbound messages | `/admin/outbound/` | Captured SMTP submissions list |
+| Outbound detail | `/admin/outbound/{id}` | Submission metadata and storage path |
+
+---
+
+## Analysis engine
+
+Each message is analyzed in two stages:
+
+### 1. Deterministic checks
+
+Pure-Python rules with no network calls:
+
+- SPF/DKIM/DMARC signal analysis
+- Display-name vs. From-address mismatch
+- Reply-To mismatch
+- Brand impersonation patterns
+- Link-text/href mismatch
+- Suspicious URL patterns (IP hosts, deep subdomains, credential keywords)
+- Risky attachment types (`.exe`, `.ps1`, `.docm`, macros, etc.)
+- Credential/payment/urgency/fear language detection
+- HTML-only body detection
+
+### 2. LLM analysis (Ollama)
+
+A structured prompt is built from the message envelope, auth signals, body, URLs, and deterministic evidence. The model returns a strict JSON response with:
+
+- Overall risk score `[0.0, 1.0]`
+- Per-dimension scores for all 12 dimensions
+- Rationale summary
+- Evidence list
+- Recommended action
+- Confidence
+
+If the model output is malformed, the system retries once with a stricter prompt, then degrades safely.
+
+### The 12 manipulation dimensions
+
+| Identifier | Description |
+|-----------|-------------|
+| `authority_pressure` | Abuse of authority or official-sounding sender |
+| `urgency_pressure` | Artificial time pressure |
+| `scarcity` | False scarcity or limited-availability claims |
+| `fear_threat` | Fear-based coercion or threat language |
+| `reward_lure` | Promises of unexpected rewards or prizes |
+| `curiosity_bait` | Clickbait or information-withholding hooks |
+| `reciprocity_obligation` | Manufactured feelings of obligation |
+| `social_proof` | False consensus or social validation |
+| `secrecy_isolation` | Requests to keep communication secret |
+| `impersonation` | Impersonation of individuals or organizations |
+| `compliance_escalation` | Incremental compliance requests |
+| `credential_or_payment_capture` | Requests for credentials, payment, or PII |
+
+### Verdict thresholds (configurable)
+
+| Verdict | Default risk threshold |
+|---------|----------------------|
+| `allow` | ≤ 0.25 |
+| `allow_with_banner` | ≤ 0.45 |
+| `soft_hold` | ≤ 0.65 |
+| `quarantine` | ≤ 0.85 |
+| `escalate_to_admin` | > 0.85 |
+| `reject` | Gateway mode only |
+
+---
+
+## Health endpoints
+
+| Endpoint | Auth | Description |
+|----------|------|-------------|
+| `GET /health/live` | None | Liveness: 200 if the process is alive |
+| `GET /health/ready` | None | Readiness: 200 if DB + Redis reachable; 503 if degraded |
+
+---
+
+## Testing
 
 ```bash
+# Run all tests
 pytest
+
+# With coverage report
+pytest --cov=app --cov-report=term-missing
+
+# Specific test module
+pytest tests/unit/test_verdict.py -v
 ```
 
-With coverage:
+Tests use an in-memory SQLite database. PostgreSQL and Redis are not required for the unit or integration test suites.
 
 ```bash
-pytest --cov=app --cov-report=term-missing
+# Integration verification scripts (require running Docker stack)
+python scripts/verify_imap_proxy.py   # 17 assertions
+python scripts/verify_smtp_proxy.py   # 22 assertions
+python scripts/smoke_test.py          # Basic HTTP smoke test
 ```
-
-Tests use an in-memory SQLite database and do not require PostgreSQL or Redis to be running. Integration tests that check `/health/ready` gracefully handle the absence of Redis by asserting the correct response shape rather than requiring connectivity.
 
 ---
 
-## Linting and Formatting
+## Linting and formatting
 
 ```bash
-# Check
+# Lint
 ruff check .
 
 # Format
 ruff format .
 
-# Check + format together
+# Lint + autofix
 ruff check . --fix && ruff format .
 ```
 
 ---
 
-## Project Structure
+## Project structure
 
 ```
 mindwall/
-  app/
-    main.py              # FastAPI app factory, lifespan, middleware
-    config.py            # Pydantic settings (env-driven, cached)
-    dependencies.py      # Shared FastAPI dependencies
-    logging_config.py    # Structured logging (structlog)
-    security/
-      crypto.py          # Fernet credential encryption
-    auth/
-      router.py          # Login / logout routes
-      service.py         # Password hashing, credential verification
-      schemas.py         # UserContext and auth Pydantic models
-    users/
-      models.py          # User ORM model, UserRole enum
-    policies/
-      constants.py       # ManipulationDimension (12), Verdict enums
-    health/
-      router.py          # /health/live, /health/ready
-    admin/
-      router.py          # Admin dashboard (Phase 1 placeholder)
-    db/
-      base.py            # SQLAlchemy DeclarativeBase with timestamps
-      session.py         # Async engine, session factory, get_db_session
-    mailboxes/           # Phase 2 — mailbox registration
-    proxies/
-      imap/              # Phase 3 — IMAP proxy
-      smtp/              # Phase 3 — SMTP proxy
-    messages/            # Phase 3 — RFC 5322 parsing
-    analysis/            # Phase 4 — deterministic checks + LLM
-    policies/            # Phase 5 — decision engine
-    quarantine/          # Phase 5 — encrypted storage + review UI
-    alerts/              # Phase 5 — admin alerting
-    audit/               # Phase 6 — immutable audit log
-    templates/           # Jinja2 templates (Tailwind CDN)
-    static/              # JS + CSS static assets
-  workers/
-    analysis_worker.py   # Phase 4
-    llm_worker.py        # Phase 4
-    maintenance_worker.py # Phase 6
-  tests/
-    conftest.py          # Shared fixtures (in-memory SQLite, test client)
-    unit/                # Unit tests (no I/O)
-    integration/         # Integration tests (HTTP + DB)
-  alembic/               # Database migrations
-  alembic.ini
-  pyproject.toml
-  .env.example
-  architecture.md
+├── app/
+│   ├── main.py                  # FastAPI app factory, lifespan, middleware
+│   ├── config.py                # Pydantic settings (env-driven, cached)
+│   ├── dependencies.py          # Shared FastAPI dependencies
+│   ├── logging_config.py        # Structured logging via structlog
+│   ├── admin/                   # Admin UI routes + dashboard
+│   ├── alerts/                  # Alert models, service, routing
+│   ├── analysis/                # Deterministic checks, Ollama client, orchestrator
+│   ├── audit/                   # Append-only audit event infrastructure
+│   ├── auth/                    # Login/logout, session, RBAC
+│   ├── db/                      # SQLAlchemy Base, session factory
+│   ├── health/                  # /health/live and /health/ready
+│   ├── mailboxes/               # Mailbox registration, sync, view service
+│   ├── messages/                # RFC 5322 parser, HTML sanitizer, URL extractor
+│   ├── policies/                # ManipulationDimension enum, verdict engine, policy settings
+│   ├── proxies/
+│   │   ├── imap/                # IMAP proxy: server, session, mailbox adapter, upstream client
+│   │   └── smtp/                # SMTP proxy: server, session, relay, delivery, outbound model
+│   ├── quarantine/              # Quarantine storage, review workflow, audit
+│   ├── security/                # Fernet credential encryption
+│   ├── templates/               # Jinja2 templates (Tailwind CDN)
+│   └── users/                   # User ORM model, UserRole enum
+├── workers/
+│   ├── imap_proxy.py            # IMAP proxy entrypoint
+│   ├── smtp_proxy.py            # SMTP proxy entrypoint
+│   ├── analysis_worker.py       # Background analysis worker (planned)
+│   ├── llm_worker.py            # LLM worker (planned)
+│   └── maintenance_worker.py    # Maintenance worker (planned)
+├── tests/
+│   ├── conftest.py              # Shared fixtures (in-memory SQLite, test client)
+│   ├── unit/                    # Pure unit tests
+│   └── integration/             # HTTP + DB integration tests
+├── alembic/                     # Alembic migrations (0001–0009)
+├── scripts/
+│   ├── create_admin.py          # Bootstrap first admin user
+│   ├── seed_imap_dev.py         # Seed dev IMAP credentials
+│   ├── entrypoint.sh            # Docker entrypoint (migrate + start)
+│   ├── verify_imap_proxy.py     # IMAP proxy verification (17 checks)
+│   └── verify_smtp_proxy.py     # SMTP proxy verification (22 checks)
+├── docker-compose.yml
+├── Dockerfile
+├── pyproject.toml
+├── .env.example
+└── architecture.md
 ```
 
 ---
 
-## Configuration Reference
+## Database migrations
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `SECRET_KEY` | ✅ | — | Session cookie signing key (min 32 chars) |
-| `ENCRYPTION_KEY` | ✅ | — | Fernet key for credential encryption |
-| `DATABASE_URL` | — | `postgresql+asyncpg://mindwall:mindwall@localhost:5432/mindwall` | Async PostgreSQL URL |
-| `REDIS_URL` | — | `redis://localhost:6379/0` | Redis connection URL |
-| `DEBUG` | — | `false` | Enables debug logs and OpenAPI docs at `/api/docs` |
-| `OLLAMA_BASE_URL` | — | `http://localhost:11434` | Local Ollama endpoint |
-| `OLLAMA_MODEL` | — | `llama3.1:8b` | Model to use for analysis |
-| `IMAP_PROXY_HOST` | — | `0.0.0.0` | IP the IMAP proxy binds to |
-| `IMAP_PROXY_PORT` | — | `1993` | Local IMAP proxy listen port |
-| `IMAP_PROXY_DISPLAY_HOST` | — | `127.0.0.1` | Host shown to users in proxy setup instructions |
-| `SMTP_PROXY_HOST` | — | `0.0.0.0` | IP the SMTP proxy binds to |
-| `SMTP_PROXY_PORT` | — | `1587` | Local SMTP proxy listen port |
-| `SMTP_PROXY_DISPLAY_HOST` | — | `127.0.0.1` | Host shown to users in proxy setup instructions |
-| `CONNECTION_TIMEOUT_SECONDS` | — | `10` | Upstream IMAP/SMTP connectivity check timeout |
-| `BLOB_STORAGE_PATH` | — | `./data/blobs` | Path for encrypted mail storage |
-| `ANALYSIS_ENABLED` | — | `true` | Enable LLM-based analysis |
-| `GATEWAY_MODE` | — | `false` | Enable pre-delivery inline gateway mode |
+Mindwall uses Alembic for schema management. All migrations are in `alembic/versions/`.
 
----
+| Migration | Description |
+|-----------|-------------|
+| `0001_create_users` | Users table, UserRole enum |
+| `0002_create_mailbox_profiles` | Mailbox profiles, upstream credentials |
+| `0003_create_messages` | Messages, URLs, attachments |
+| `0004_create_analysis` | AnalysisRun, DimensionScore |
+| `0005_create_quarantine_audit` | QuarantineItem, AuditEvent |
+| `0006_create_sync_tables` | MailboxSyncState, MailboxItem |
+| `0007_create_policy_settings_alerts` | PolicySetting, Alert |
+| `0008_create_outbound_messages` | OutboundMessage (SMTP proxy) |
+| `0009_fix_base_timestamps` | Corrective: adds missing timestamp columns |
 
-## Health Endpoints
+```bash
+# Apply all pending migrations
+alembic upgrade head
 
-| Endpoint | Auth | Description |
-|----------|------|-------------|
-| `GET /health/live` | None | Liveness: 200 if process is alive |
-| `GET /health/ready` | None | Readiness: 200 if DB + Redis reachable, 503 if degraded |
+# Check current revision
+alembic current
 
----
-
-## Security Notes
-
-- Upstream mail credentials are encrypted at rest using Fernet (AES-128-CBC + HMAC-SHA256).
-- Session cookies are signed with `SECRET_KEY` and flagged `HttpOnly`, `SameSite=Lax`.
-- HTTPS-only cookies are enforced in production (`DEBUG=false`).
-- No message content is ever sent to external APIs or services.
-- OpenAPI docs (`/api/docs`) are only enabled when `DEBUG=true`.
-
----
-
-## Message Ingestion (Phase 3)
-
-Phase 3 adds RFC 5322 email parsing, safe content extraction, and the admin Message Lab.
-
-### What was built
-- **RFC 5322 parser** (`app/messages/parser.py`): Parses raw `.eml` bytes using Python's stdlib `email` module. Extracts envelope fields, plain-text body, HTML body, URLs, and attachments. Never raises — degrades gracefully on malformed input.
-- **HTML sanitizer** (`app/messages/html_safe.py`): Strips scripts, styles, and remote content. Extracts safe plain-text and anchor URLs from HTML parts.
-- **URL extractor** (`app/messages/urls.py`): Extracts and normalizes HTTP/HTTPS URLs from plain-text bodies and HTML anchors. Blocks `javascript:`, `data:`, `vbscript:`, and `file:` schemes.
-- **Raw message store** (`app/messages/storage.py`): Writes raw `.eml` files to disk at `{root}/{sha256[:2]}/{sha256}.eml`. Idempotent. SHA-256 addressed.
-- **Ingestion service** (`app/messages/service.py`): Orchestrates parse → store → persist for a single message.
-- **Message Lab UI** (`/admin/messages/`): Admin-only tool for uploading `.eml` files and inspecting parse results. Lists ingested messages and shows per-message detail (envelope, auth headers, body, URLs, attachments, storage info).
-- **Alembic migration** (`0003_create_messages.py`): Creates `messages`, `message_urls`, `message_attachments` tables.
-
-### Message Lab usage
-
-1. Log in as an admin user.
-2. Navigate to **Admin → Message Lab** (`/admin/messages/`).
-3. Click **Upload .eml** and select a raw email file (max `MESSAGE_LAB_MAX_UPLOAD_MB` MB).
-4. The file is parsed, stored to `RAW_MESSAGE_STORE_PATH`, and its detail page is shown.
-
-### Raw storage layout
-
-```text
-data/
-  raw_messages/
-    ab/
-      ab3f... (sha256 hex).eml
-    cd/
-      cd7e....eml
+# Show migration history
+alembic history
 ```
 
-### New configuration keys
+---
 
-| Key | Default | Description |
-|-----|---------|-------------|
-| `RAW_MESSAGE_STORE_PATH` | `./data/raw_messages` | Filesystem path for raw .eml storage |
-| `MESSAGE_LAB_MAX_UPLOAD_MB` | `25` | Maximum .eml upload size in MB |
-| `MESSAGE_LAB_ENABLED` | `true` | Toggle the Message Lab admin UI |
+## Security
+
+- **Credential encryption.** Upstream IMAP/SMTP passwords are encrypted at rest with Fernet (AES-128-CBC + HMAC-SHA256). The `ENCRYPTION_KEY` must be a valid Fernet key; the application refuses to start if it is missing or malformed.
+- **Proxy password hashing.** Mindwall proxy passwords are stored only as bcrypt hashes. They cannot be recovered — use the "Reset proxy password" UI action if lost.
+- **Session security.** Cookies are signed with `SECRET_KEY`, flagged `HttpOnly` and `SameSite=Lax`. Secure-only cookies are enforced when `DEBUG=false`.
+- **No external data egress.** The Ollama client enforces localhost-only connections at the code level. Message content is never sent to any external service.
+- **OpenAPI docs.** The `/api/docs` endpoint is only exposed when `DEBUG=true`.
+- **HTML rendering.** All message HTML is sanitized before rendering. Scripts, forms, remote images, and active content are stripped.
+
+See [SECURITY.md](SECURITY.md) for the vulnerability disclosure policy.
 
 ---
 
-## Analysis Engine (Phase 4)
+## Documentation
 
-Phase 4 adds deterministic security checks, local Ollama LLM orchestration, 12-dimension manipulation scoring, and policy verdict computation.
+Full documentation is in the [`docs/`](docs/) directory:
 
-### What was built
-
-- **Deterministic checks** (`app/analysis/deterministic.py`): 10 explicit rule-based checks covering display-name/reply-to mismatch, brand impersonation, link-text/href mismatch, suspicious URL structure (IP hosts, deep subdomains, credential keywords), risky attachments, credential/payment/urgency/fear language, missing DKIM/SPF, and HTML-only body.
-- **Ollama client** (`app/analysis/ollama_client.py`): Async HTTP client for the local Ollama `/api/generate` endpoint. Enforces localhost-only access (privacy guarantee). Raises `OllamaError` on timeout, connect errors, or bad responses. Never calls external APIs.
-- **Prompt builder + parser** (`app/analysis/prompt.py`): Builds a compact structured prompt with envelope, auth signals, body, URLs, and deterministic evidence. Requests strict JSON output with all 12 dimension scores. Parses and validates the response, clamping scores to `[0.0, 1.0]`. Returns `None` on parse failure.
-- **Analysis orchestrator** (`app/analysis/service.py`): Coordinates the full pipeline: deterministic checks → (optional) Ollama LLM call → retry with strict prompt if malformed → degrade gracefully on failure → combined score → verdict → DB persistence.
-- **Policy verdict engine** (`app/policies/verdict.py`): Converts combined risk + confidence into a stable verdict (`allow` → `allow_with_banner` → `soft_hold` → `quarantine` → `escalate_to_admin` / `reject`). Supports configurable thresholds, degraded-mode adjustment, and gateway mode.
-- **DB models** (`app/analysis/models.py`): `AnalysisRun` (one per analysis pipeline run) + `DimensionScore` (12 rows per run). Alembic migration `0004_create_analysis.py`.
-- **Message Lab integration**: Detail page shows full analysis results after clicking **Analyse**. Displays verdict badge, risk score, confidence, dimension score grid, deterministic findings, evidence list, degraded banner.
-
-### Analysis pipeline
-
-```
-ingest message
-    ↓
-deterministic checks   →  Finding list + risk score + dim scores
-    ↓
-build LLM prompt       →  structured prompt with evidence
-    ↓
-Ollama generate        →  raw JSON response
-    ↓
-parse + validate       →  LLMAnalysisResponse (or None → retry → degrade)
-    ↓
-combine scores         →  overall_risk = 0.4 * det + 0.6 * llm
-    ↓
-compute verdict        →  allow / allow_with_banner / soft_hold / quarantine / escalate
-    ↓
-persist AnalysisRun    →  DB + DimensionScore rows
-```
-
-### Degraded mode
-
-If Ollama is unreachable, returns invalid JSON, or is disabled:
-- `is_degraded = True`
-- `overall_risk = deterministic_risk_score`
-- `confidence = 0.35` (conservative)
-- Verdict computed with a +0.10 risk adjustment when `confidence < 0.5`
-- `status = "degraded"` recorded in DB
-- UI shows a yellow warning banner
-
-### New configuration keys (Phase 4)
-
-| Key | Default | Description |
-|-----|---------|-------------|
-| `LLM_ENABLED` | `true` | Set to `false` for deterministic-only analysis |
-| `OLLAMA_TIMEOUT_SECONDS` | `120.0` | Seconds to wait for Ollama generate response |
-| `ANALYSIS_PROMPT_VERSION` | `1.0` | Prompt version string (bump when schema changes) |
-| `VERDICT_THRESHOLD_ALLOW` | `0.25` | Risk score upper bound for ALLOW verdict |
-| `VERDICT_THRESHOLD_ALLOW_WITH_BANNER` | `0.45` | Upper bound for ALLOW_WITH_BANNER |
-| `VERDICT_THRESHOLD_SOFT_HOLD` | `0.65` | Upper bound for SOFT_HOLD |
-| `VERDICT_THRESHOLD_QUARANTINE` | `0.85` | Upper bound for QUARANTINE |
+| Document | Description |
+|----------|-------------|
+| [Getting started](docs/getting-started.md) | First steps for new users |
+| [Local installation](docs/installation/local.md) | Full local dev setup |
+| [Docker installation](docs/installation/docker.md) | Full Docker setup with Ollama |
+| [Configuration](docs/configuration.md) | Every environment variable explained |
+| [Architecture overview](docs/architecture-overview.md) | System design and components |
+| [Admin guide](docs/admin-guide.md) | Admin UI workflow and daily operations |
+| [Mailbox onboarding](docs/mailbox-onboarding.md) | Registering mailboxes and configuring mail clients |
+| [Analysis engine](docs/analysis-engine.md) | Deterministic checks, LLM pipeline, scoring |
+| [Policy engine](docs/policy-engine.md) | Verdict logic, thresholds, gateway mode |
+| [Quarantine workflow](docs/quarantine-workflow.md) | Review, release, and delete |
+| [Alerts and audit](docs/alerts-and-audit.md) | Alert triage and audit log |
+| [Mailbox sync](docs/mailbox-sync.md) | Upstream IMAP sync internals |
+| [IMAP proxy](docs/imap-proxy.md) | Protocol subset, virtual folders, client setup |
+| [SMTP proxy](docs/smtp-proxy.md) | Submission proxy, delivery modes, client setup |
+| [Message Lab](docs/message-lab.md) | Admin tool for manual message inspection |
+| [Database and migrations](docs/database-and-migrations.md) | Schema, Alembic workflow |
+| [Testing](docs/testing.md) | Test suite, fixtures, verification scripts |
+| [Troubleshooting](docs/troubleshooting.md) | Common issues and diagnostics |
+| [Roadmap](docs/roadmap.md) | Planned phases and future work |
 
 ---
 
-## Next Development Step (Phase 5)
+## Contributing
 
-Enforcement:
-1. IMAP proxy with filtered mailbox views and quarantine virtual folder.
-2. Quarantine storage, review UI, and release/delete workflows.
-3. Admin alerting for high-risk messages.
----
+Mindwall is **source-available** under the [PolyForm Noncommercial 1.0.0](LICENSE) license. Commercial use is not permitted.
 
-## Completed: Phase 6 — Upstream IMAP Sync + Mailbox Virtualization
+Before contributing, read [CONTRIBUTING.md](CONTRIBUTING.md). Key points:
 
-### What was built
-
-Phase 6 implements the backend foundation for pulling messages from upstream
-IMAP servers into Mindwall's local store — without building the full IMAP
-protocol proxy server yet.
-
-**New modules:**
-
-| Module | Purpose |
-|--------|---------|
-| `app/proxies/imap/client.py` | Async-friendly upstream IMAP client wrapping `imaplib` |
-| `app/mailboxes/sync_models.py` | ORM models: `MailboxSyncState`, `MailboxItem` |
-| `app/mailboxes/sync_service.py` | Sync orchestrator: auth, fetch, ingest, analyze, quarantine |
-| `app/mailboxes/view_service.py` | Virtual inbox layer: visible/quarantined/pending views |
-| `app/mailboxes/sync_router.py` | Admin routes: sync status, trigger, inbox, quarantine, item detail |
-| `alembic/versions/0006_create_sync_tables.py` | Migration for new tables |
-| `app/templates/admin/mailboxes/` | 3 new admin templates |
-
-### How upstream sync works
-
-1. Admin triggers sync via `POST /admin/mailboxes/{id}/sync`
-2. Sync service loads or initializes `MailboxSyncState` for the folder
-3. Decrypts upstream IMAP credentials with `CredentialEncryptor`
-4. Connects to upstream IMAP via `UpstreamImapClient` (SSL/TLS, STARTTLS, or plain)
-5. SELECTs the folder; detects UIDVALIDITY resets
-6. Fetches UIDs above `last_seen_uid` (up to `batch_size`)
-7. For each new UID: fetch raw bytes → ingest → analyze → quarantine decision → record `MailboxItem`
-8. Updates checkpoint (`last_seen_uid`, `last_sync_at`, `sync_status`)
-9. Commits and returns `SyncResult` summary
-
-**Sync is idempotent** — re-syncing the same UIDs is safe.
-
-### How mailbox virtualization works
-
-`view_service.py` exposes filtered views over `MailboxItem`:
-
-| View | Visibilities included |
-|------|-----------------------|
-| `get_visible_inbox` | `VISIBLE` |
-| `get_quarantine_inbox` | `QUARANTINED`, `HIDDEN` |
-| `get_pending_items` | `PENDING` |
-
-Each item is enriched with its associated `Message`, `AnalysisRun`,
-and `QuarantineItem` in a single bulk query.
-
-### How degraded/error sync states work
-
-- **Auth failures**: `sync_status=ERROR`, `failed_auth=True`, state committed immediately
-- **Connection failures**: `sync_status=ERROR`, `failed_connection=True`
-- **Per-message failures**: error recorded on `MailboxItem`, sync continues to next UID
-- **Partial sync**: `sync_status=PARTIAL` if some messages ingested and some failed
-- UIDVALIDITY reset triggers a full re-sync from UID 0
-
-### New configuration keys (Phase 6)
-
-| Key | Default | Description |
-|-----|---------|-------------|
-| `IMAP_SYNC_TIMEOUT_SECONDS` | `30` | IMAP connection/operation timeout |
-| `IMAP_SYNC_DEFAULT_FOLDER` | `INBOX` | Default folder when triggering sync from UI |
-| `IMAP_SYNC_BATCH_SIZE` | `50` | Max new UIDs to fetch per sync run |
-
-### Admin UI
-
-- `GET /admin/mailboxes/{id}/sync` — sync status, per-folder checkpoints, item counts, trigger form
-- `GET /admin/mailboxes/{id}/inbox` — Mindwall-visible messages
-- `GET /admin/mailboxes/{id}/quarantine` — quarantined/hidden messages
-- `GET /admin/mailboxes/{id}/items/{item_id}` — full item detail with analysis
-
-### What is NOT included yet
-
-- Full IMAP proxy protocol server (future phase)
-- Background worker / scheduled sync (future phase)
-- IMAP IDLE push support (future phase)
+- Keep all changes compatible with the non-commercial license.
+- Follow the coding standards described in `.github/copilot-instructions.md`.
+- Run `ruff check .` and `pytest` before submitting.
+- All security-relevant changes require a clear rationale.
 
 ---
 
-## Next Development Step (Phase 7)
+## License
 
-Background workers and observability:
-1. Async background sync worker (APScheduler or similar)
-2. Redis-backed task queue for analysis jobs
-3. Prometheus metrics: sync latency, quarantine rate, model health
-4. Health endpoint upgrades: Ollama, Redis, background workers
-5. End-to-end integration tests against a real IMAP sandbox
+Mindwall is released under the **PolyForm Noncommercial 1.0.0** license.
+
+You are free to use, study, and modify this software for non-commercial purposes. Commercial use of any kind requires explicit written permission from the copyright holder.
+
+See [LICENSE](LICENSE) for the full license text.
