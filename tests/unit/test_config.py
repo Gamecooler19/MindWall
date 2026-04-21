@@ -88,7 +88,10 @@ class TestSettingsValidation:
 
         monkeypatch.delenv("SECRET_KEY", raising=False)
         with pytest.raises(ValidationError):
+            # _env_file=None prevents pydantic-settings from reading .env,
+            # ensuring the missing field is not silently supplied from disk.
             Settings(
+                _env_file=None,
                 encryption_key=_VALID_FERNET_KEY,
                 database_url="postgresql+asyncpg://u:p@localhost/db",
                 redis_url="redis://localhost:6379/0",
@@ -100,7 +103,10 @@ class TestSettingsValidation:
 
         monkeypatch.delenv("ENCRYPTION_KEY", raising=False)
         with pytest.raises(ValidationError):
+            # _env_file=None prevents pydantic-settings from reading .env,
+            # ensuring the missing field is not silently supplied from disk.
             Settings(
+                _env_file=None,
                 secret_key=_VALID_SECRET_KEY,
                 database_url="postgresql+asyncpg://u:p@localhost/db",
                 redis_url="redis://localhost:6379/0",

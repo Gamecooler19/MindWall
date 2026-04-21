@@ -123,9 +123,17 @@ def app(test_settings, db_engine):
     return application
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def client(app):
-    """Synchronous TestClient for testing HTTP endpoints without a running server."""
-    # raise_server_exceptions=True surfaces Python exceptions in test output.
+    """Synchronous TestClient for testing HTTP endpoints without a running server.
+
+    Function-scoped so that each test starts with a fresh HTTP client:
+    - no session cookies carried over from previous tests
+    - the app lifespan (init_db / close_db) runs cleanly per test
+    - ordering-dependent failures from shared auth state are eliminated
+
+    The session-scoped ``app`` is reused, so the dependency overrides and the
+    test database engine remain stable across the whole suite.
+    """
     with TestClient(app, raise_server_exceptions=True) as c:
         yield c

@@ -340,7 +340,7 @@ async def get_latest_analysis(
         select(AnalysisRun)
         .where(AnalysisRun.message_id == message_id)
         .options(selectinload(AnalysisRun.dimension_scores))
-        .order_by(AnalysisRun.created_at.desc())
+        .order_by(AnalysisRun.created_at.desc(), AnalysisRun.id.desc())
         .limit(1)
     )
     return result.scalar_one_or_none()

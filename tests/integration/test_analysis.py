@@ -436,10 +436,10 @@ class TestAnalyzeRoute:
         assert "Overall Risk" in body
         assert "Verdict" in body
 
-    def test_analyze_route_unauthenticated_returns_401(self, client, tmp_path, monkeypatch):
-        with client as c:
-            c.cookies.clear()
-            response = c.post("/admin/messages/999/analyze", follow_redirects=False)
+    def test_analyze_route_unauthenticated_returns_401(self, client):
+        # The function-scoped client starts with no cookies, so this request
+        # is already unauthenticated — no need to clear cookies manually.
+        response = client.post("/admin/messages/999/analyze", follow_redirects=False)
         assert response.status_code == 401
 
     def test_analyze_route_unknown_message_returns_404(self, client):
