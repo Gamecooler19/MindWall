@@ -1,0 +1,171 @@
+# =============================================================================
+# Mindwall — Docker Compose (development stack)
+# =============================================================================
+# Usage:
+#   docker compose up -d           # start stack
+#   docker compose logs -f app     # follow app logs
+#   docker compose down            # stop and remove containers
+#   docker compose down -v         # also remove data volumes (full reset)
+# =============================================================================
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # Web application
+  # ---------------------------------------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    image: mindwall:dev
+    container_name: mindwall_app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # ---- required ----
+      SECRET_KEY: ${SECRET_KEY}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      DATABASE_URL: postgresql+asyncpg://mindwall:mindwall@db:5432/mindwall
+      REDIS_URL: redis://redis:6379/0
+      DB_HOST: db
+      DB_PORT: "5432"
+
+      # ---- app behaviour ----
+      APP_NAME: Mindwall
+      DEBUG: "true"
+      SESSION_MAX_AGE: "3600"
+
+      # ---- storage (inside container) ----
+      BLOB_STORAGE_PATH: /app/data/blobs
+      RAW_MESSAGE_STORE_PATH: /app/data/raw_messages
+
+      # ---- features ----
+      MESSAGE_LAB_ENABLED: "true"
+      ANALYSIS_ENABLED: "true"
+
+      # ---- LLM: disabled by default in dev Docker ----
+      # Set LLM_ENABLED=true and point OLLAMA_BASE_URL at a running Ollama
+      # instance to enable model inference. See README for instructions.
+      LLM_ENABLED: "false"
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: llama3.1:8b
+
+      # ---- gateway mode ----
+      GATEWAY_MODE: "false"
+
+      # ---- IMAP sync ----
+      IMAP_SYNC_TIMEOUT_SECONDS: "30"
+      IMAP_SYNC_BATCH_SIZE: "50"
+
+      # ---- dev bootstrap: create admin user on first start ----
+      MINDWALL_CREATE_ADMIN: "true"
+      MINDWALL_ADMIN_EMAIL: ${MINDWALL_ADMIN_EMAIL}
+      MINDWALL_ADMIN_PASSWORD: ${MINDWALL_ADMIN_PASSWORD}
+
+    ports:
+      - "${APP_PORT:-8000}:8000"
+
+    volumes:
+      # Persist message data across restarts
+      - mindwall_data:/app/data
+
+    networks:
+      - mindwall_net
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL — primary relational database
+  # ---------------------------------------------------------------------------
+  db:
+    image: postgres:16-alpine
+    container_name: mindwall_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mindwall
+      POSTGRES_PASSWORD: mindwall
+      POSTGRES_DB: mindwall
+    volumes:
+      - mindwall_pg_data:/var/lib/postgresql/data
+    networks:
+      - mindwall_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mindwall -d mindwall"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ---------------------------------------------------------------------------
+  # Redis — caching and task queues
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: mindwall_redis
+    restart: unless-stopped
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+    volumes:
+      - mindwall_redis_data:/data
+    networks:
+      - mindwall_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
+  # Ollama — local LLM inference (optional)
+  # ---------------------------------------------------------------------------
+  # Ollama is defined but not started by default.
+  # To enable it:
+  #   1. Uncomment the 'ollama' service below.
+  #   2. Set LLM_ENABLED=true in the app service environment.
+  #   3. Run: docker compose up -d ollama
+  #   4. Pull the model: docker compose exec ollama ollama pull llama3.1:8b
+  #
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   container_name: mindwall_ollama
+  #   restart: unless-stopped
+  #   volumes:
+  #     - mindwall_ollama_data:/root/.ollama
+  #   networks:
+  #     - mindwall_net
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 30s
+
+# ---------------------------------------------------------------------------
+# Volumes
+# ---------------------------------------------------------------------------
+volumes:
+  mindwall_pg_data:
+    driver: local
+  mindwall_redis_data:
+    driver: local
+  mindwall_data:
+    driver: local
+  # mindwall_ollama_data:
+  #   driver: local
+
+# ---------------------------------------------------------------------------
+# Networks
+# ---------------------------------------------------------------------------
+networks:
+  mindwall_net:
+    driver: bridge
